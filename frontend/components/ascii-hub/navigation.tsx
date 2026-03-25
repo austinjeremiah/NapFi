@@ -51,14 +51,14 @@ export function Navigation() {
           : "bg-transparent"
       }`}
     >
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
+      <nav className="mx-auto flex max-w-65xl items-center justify-between px-4 py-4 lg:px-8">
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="flex items-center gap-2 font-mono text-sm text-foreground transition-all duration-200 hover:opacity-70 focus-visible:ring-2 focus-visible:ring-foreground focus-visible:outline-none"
+          className="flex items-center gap-2 font-mono text-xl text-foreground transition-all duration-200 hover:opacity-70 focus-visible:ring-2 focus-visible:ring-foreground focus-visible:outline-none"
           aria-label="Scroll to top"
         >
           <span className="text-muted-foreground">{">"}</span>
-          <span className="font-pixel tracking-wider">MONO_HUB</span>
+          <span className="font-pixel tracking-wider">NapFi</span>
         </button>
 
         {/* Desktop Nav */}

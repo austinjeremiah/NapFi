@@ -1,4 +1,4 @@
-# PrivyAgent — Full Technical Specification
+# NapFi — Full Technical Specification
 
 **Project:** Confidential DeFi savings agent
 **Team size:** 3 people

@@ -92,13 +92,13 @@ export function HeroSection() {
         >
           <div className="inline-flex items-center gap-2 border border-border px-3 py-1 font-mono text-xs text-muted-foreground">
             <span className="inline-block h-1.5 w-1.5 bg-foreground" />
-            <span>FRONTEND ENGINEERING SHOWCASE</span>
+            <span>NapFi-CONFIDENTIAL SAVINGS</span>
           </div>
 
           <h1 className="font-pixel-line text-5xl font-bold leading-none tracking-tight text-foreground text-balance md:text-7xl lg:text-9xl">
-            Raw Logic.
+            Your money saves itself.
             <br />
-            <span className="text-muted-foreground">Refined Form.</span>
+            <span className="text-muted-foreground">Privately.</span>
           </h1>
 
           <p className="max-w-prose font-mono text-sm leading-relaxed text-muted-foreground md:text-base">
