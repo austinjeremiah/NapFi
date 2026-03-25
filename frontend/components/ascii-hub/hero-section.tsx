@@ -102,9 +102,7 @@ export function HeroSection() {
           </h1>
 
           <p className="max-w-prose font-mono text-sm leading-relaxed text-muted-foreground md:text-base">
-            An exclusive showcase of high-performance frontend engineering
-            and character-based art. Eight specialized modules exploring
-            the intersection of code and aesthetics.
+            A DeFi savings agent that runs on a Flow scheduled transaction. Deposits go into a Zama fhEVM encrypted vault on Sepolia where only your wallet can decrypt the balance. Every execution is posted on-chain as an ERC-8004 verifiable receipt.
           </p>
         </motion.div>
 
