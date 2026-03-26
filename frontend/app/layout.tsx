@@ -18,7 +18,7 @@ const silkscreen = Silkscreen({
 const geistPixelLine = GeistPixelLine
 
 export const metadata: Metadata = {
-  title: "Monochrome ASCII Hub | Raw Logic. Refined Form.",
+  title: "NapFi | Make money while you sleep`.",
   description:
     "A minimalist, front-end only technical showcase utilizing a black and white aesthetic, pixel typography, and ASCII-based animations across eight distinct tech-focused sections.",
   generator: "v0.app",

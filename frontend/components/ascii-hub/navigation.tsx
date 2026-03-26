@@ -62,7 +62,7 @@ export function Navigation() {
         </button>
 
         {/* Desktop Nav */}
-        <div className="hidden items-center gap-1 lg:flex">
+        <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 lg:flex">
           {navLinks.map((link) => (
             <button
               key={link.id}

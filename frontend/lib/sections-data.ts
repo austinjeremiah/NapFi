@@ -11,76 +11,8 @@ export interface TechSection {
 
 export const techSections: TechSection[] = [
   {
-    id: "kernel-systems",
-    number: "01",
-    title: "Kernel & Systems",
-    subtitle: "Low-level architecture",
-    description:
-      "Exploring the foundational layer where hardware meets software. Kernel modules, system calls, and memory management form the backbone of every computing experience.",
-    ascii: `
-    ┌─────────────────────────┐
-    │  KERNEL SPACE            │
-    │  ┌───────┐ ┌───────┐   │
-    │  │ SCHED │ │  MEM  │   │
-    │  └───┬───┘ └───┬───┘   │
-    │      │         │        │
-    │  ┌───┴─────────┴───┐   │
-    │  │   SYSTEM CALLS   │   │
-    │  └─────────────────┘   │
-    │  ┌───────────────────┐  │
-    │  │   USER SPACE       │  │
-    │  └───────────────────┘  │
-    └─────────────────────────┘`,
-    specs: [
-      { label: "Architecture", value: "x86_64 / ARM64" },
-      { label: "Scheduler", value: "CFS (Completely Fair)" },
-      { label: "Memory Model", value: "Virtual Paging" },
-      { label: "IPC", value: "Pipes, Sockets, Shared Mem" },
-    ],
-    commands: [
-      "$ uname -a",
-      "Linux monochrome 6.1.0 #1 SMP x86_64",
-      "$ cat /proc/meminfo | head -3",
-      "MemTotal:   16384000 kB",
-      "MemFree:     8192000 kB",
-      "MemAvailable: 12288000 kB",
-    ],
-  },
-  {
-    id: "network-topologies",
-    number: "02",
-    title: "Network Topologies",
-    subtitle: "Distributed connectivity",
-    description:
-      "Mapping the invisible infrastructure that connects billions of nodes. From mesh networks to star topologies, understanding how data traverses the physical and logical layers.",
-    ascii: `
-       [A]───────[B]
-       /│\\         │\\
-      / │ \\        │ \\
-    [C] │ [D]──────[E] [F]
-     \\  │ /        │  /
-      \\ │/         │ /
-       [G]───────[H]
-        │           │
-       [I]───────[J]`,
-    specs: [
-      { label: "Protocol", value: "TCP/IP Stack" },
-      { label: "Topology", value: "Hybrid Mesh" },
-      { label: "Latency", value: "< 10ms p99" },
-      { label: "Bandwidth", value: "10 Gbps" },
-    ],
-    commands: [
-      "$ traceroute node-alpha.mesh",
-      "1  gateway (10.0.0.1)  0.5ms",
-      "2  switch-core (10.0.1.1)  1.2ms",
-      "3  node-alpha (10.0.2.42)  2.1ms",
-      "$ netstat -an | wc -l",
-      "2048 active connections",
-    ],
-  },
-  {
     id: "distributed-ledger",
-    number: "03",
+    number: "01",
     title: "Distributed Ledger",
     subtitle: "Consensus architecture",
     description:
@@ -114,46 +46,8 @@ export const techSections: TechSection[] = [
     ],
   },
   {
-    id: "compiler-design",
-    number: "04",
-    title: "Compiler Design",
-    subtitle: "Language transformation",
-    description:
-      "The art of translating human intent into machine execution. Lexical analysis, parsing, AST transformation, and code generation form the pipeline that bridges abstraction and silicon.",
-    ascii: `
-    Source Code
-        │
-    ┌───▼───┐
-    │ LEXER │ ──> Tokens
-    └───┬───┘
-    ┌───▼────┐
-    │ PARSER │ ──> AST
-    └───┬────┘
-    ┌───▼──────────┐
-    │ SEMANTIC     │
-    │ ANALYSIS     │ ──> Typed AST
-    └───┬──────────┘
-    ┌───▼──────────┐
-    │ CODE GEN     │ ──> IR / Binary
-    └──────────────┘`,
-    specs: [
-      { label: "Frontend", value: "Recursive Descent" },
-      { label: "IR", value: "SSA Form" },
-      { label: "Optimization", value: "LLVM Pass Pipeline" },
-      { label: "Target", value: "x86_64 / WASM" },
-    ],
-    commands: [
-      "$ compile --emit-ast main.src",
-      "AST: Program(FnDecl(main, Block(...)))",
-      "$ compile --emit-ir main.src",
-      "define i32 @main() { ret i32 0 }",
-      "$ compile -O2 main.src -o main",
-      "Compiled: 2.4KB binary [0 warnings]",
-    ],
-  },
-  {
     id: "graphics-pipelines",
-    number: "05",
+    number: "02",
     title: "Graphics Pipelines",
     subtitle: "Rendering architecture",
     description:
@@ -192,7 +86,7 @@ export const techSections: TechSection[] = [
   },
   {
     id: "logic-synthesis",
-    number: "06",
+    number: "03",
     title: "Logic Synthesis",
     subtitle: "Digital design",
     description:
@@ -228,43 +122,8 @@ export const techSections: TechSection[] = [
     ],
   },
   {
-    id: "concurrency-models",
-    number: "07",
-    title: "Concurrency Models",
-    subtitle: "Parallel execution",
-    description:
-      "Managing simultaneous execution paths without chaos. Actor models, CSP channels, and lock-free data structures enable programs to harness multi-core architectures safely.",
-    ascii: `
-    Thread 1 ──┐         ┌── Thread 4
-               │         │
-    Thread 2 ──┼──[CH]──┼── Thread 5
-               │    │    │
-    Thread 3 ──┘    │    └── Thread 6
-                    │
-              ┌─────┴─────┐
-              │  Channel   │
-              │  Buffer    │
-              │  [|||||||] │
-              │  Cap: 128  │
-              └───────────┘`,
-    specs: [
-      { label: "Model", value: "CSP + Actor Hybrid" },
-      { label: "Threads", value: "M:N Green Threads" },
-      { label: "Channels", value: "Bounded MPMC" },
-      { label: "Scheduler", value: "Work-Stealing" },
-    ],
-    commands: [
-      "$ runtime --stats",
-      "Goroutines: 14,200 | Threads: 8",
-      "$ channel inspect --id main-ch",
-      "Buffer: 42/128 | Blocked: 0",
-      "$ deadlock-detect --scan",
-      "No deadlocks detected [SAFE]",
-    ],
-  },
-  {
     id: "hardware-abstraction",
-    number: "08",
+    number: "04",
     title: "Hardware Abstraction",
     subtitle: "Interface layers",
     description:
