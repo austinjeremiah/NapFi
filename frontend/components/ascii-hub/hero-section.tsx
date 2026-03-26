@@ -1,53 +1,7 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-
-const ASCII_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&*+=-~^"
-
-function useAsciiFrame(rows: number, cols: number, enabled: boolean) {
-  const [frame, setFrame] = useState("")
-  const rafRef = useRef<number>(0)
-  const lastTimeRef = useRef<number>(0)
-
-  const generateFrame = useCallback(() => {
-    let result = ""
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const distFromCenter = Math.abs(c - cols / 2) / (cols / 2)
-        const vertDist = Math.abs(r - rows / 2) / (rows / 2)
-        const dist = Math.sqrt(distFromCenter ** 2 + vertDist ** 2)
-        if (Math.random() > dist * 0.7) {
-          result += ASCII_CHARS[Math.floor(Math.random() * ASCII_CHARS.length)]
-        } else {
-          result += " "
-        }
-      }
-      if (r < rows - 1) result += "\n"
-    }
-    return result
-  }, [rows, cols])
-
-  useEffect(() => {
-    if (!enabled) {
-      setFrame(generateFrame())
-      return
-    }
-
-    const animate = (time: number) => {
-      if (time - lastTimeRef.current > 120) {
-        lastTimeRef.current = time
-        setFrame(generateFrame())
-      }
-      rafRef.current = requestAnimationFrame(animate)
-    }
-
-    rafRef.current = requestAnimationFrame(animate)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [enabled, generateFrame])
-
-  return frame
-}
 
 export function HeroSection() {
   const [motionEnabled, setMotionEnabled] = useState(true)
@@ -60,8 +14,6 @@ export function HeroSection() {
     return () => mq.removeEventListener("change", handler)
   }, [])
 
-  const asciiFrame = useAsciiFrame(30, 80, motionEnabled)
-
   return (
     <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4">
       {/* Scanline overlay */}
@@ -72,18 +24,26 @@ export function HeroSection() {
         />
       )}
 
-      {/* ASCII Background */}
+      {/* Video Background */}
       <div
-        className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden opacity-[0.10]"
+        className="pointer-events-none absolute inset-0 overflow-hidden"
         aria-hidden="true"
       >
-        <pre className="font-mono text-sm leading-[18px] text-foreground lg:text-base lg:leading-[22px]">
-          {asciiFrame}
-        </pre>
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="h-full w-full object-cover opacity-100"
+        >
+          <source src="/179649-862590064_medium.mp4" type="video/mp4" />
+        </video>
+        {/* Dark overlay so text stays readable */}
+        <div className="absolute inset-0 bg-background/60" />
       </div>
 
       {/* Main Content */}
-      <div className="relative z-20 flex max-w-4xl flex-col items-start gap-8 text-left">
+      <div className="relative z-20 flex max-w-4xl flex-col items-start gap-8 text-left -translate-y-12">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -129,35 +89,6 @@ export function HeroSection() {
           >
             Clone the Repo
           </a>
-        </motion.div>
-
-        {/* Animated ASCII art display */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.6 }}
-          className="mt-8 w-full max-w-lg border border-border bg-secondary/50 p-4"
-          role="img"
-          aria-label="ASCII art animation representing a terminal interface"
-        >
-          <div className="mb-2 flex items-center gap-2">
-            <div className="h-2 w-2 bg-muted-foreground" />
-            <div className="h-2 w-2 bg-muted-foreground/50" />
-            <div className="h-2 w-2 bg-muted-foreground/30" />
-            <span className="ml-2 font-mono text-[10px] text-muted-foreground">
-              monochrome-hub ~ v1.0.0
-            </span>
-          </div>
-          <pre className="overflow-hidden font-mono text-[10px] leading-relaxed text-foreground/80 md:text-xs">
-{`> initializing ascii_renderer...
-> loading 8 technical modules...
-> font: GeistPixel loaded [OK]
-> palette: #000 #FFF [MONOCHROME]
-> animation_engine: 60fps target
-> status: OPERATIONAL
-> _`}
-            <span className="animate-blink">{"█"}</span>
-          </pre>
         </motion.div>
       </div>
 
