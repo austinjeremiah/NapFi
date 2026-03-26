@@ -17,16 +17,16 @@ function BootSequence() {
   const isInView = useInView(ref, { once: true })
   const [lines, setLines] = useState<string[]>([])
   const bootLines = [
-    "[  0.000000] Linux version 6.1.0-monochrome (gcc 13.2.0)",
-    "[  0.000012] Command line: BOOT_IMAGE=/vmlinuz root=/dev/sda1",
-    "[  0.000034] x86/cpu: AMD Ryzen 9 7950X detected",
-    "[  0.000089] Memory: 16384000K/16777216K available",
-    "[  0.001204] ACPI: Core revision 20221020",
-    "[  0.002100] PCI: Using configuration type 1",
-    "[  0.003400] Scheduler: CFS initialized (16 CPUs)",
-    "[  0.004200] NET: Registered PF_INET protocol family",
-    "[  0.005100] VFS: Mounted root filesystem (ext4)",
-    "[  OK  ] System ready.",
+    "[  0.000000] fhEVM v0.9 initializing on Sepolia...",
+    "[  0.000012] ACL deployed: 0xf0Ffdc93b7E186bC...",
+    "[  0.000034] KMS Verifier: 0xbE0E383937d564D7...",
+    "[  0.000089] Input Verifier: 0xBBC1fFCdc7C316a...",
+    "[  0.001204] FHE Executor: 0x92C920834Ec8941d...",
+    "[  0.002100] EncryptedVault.sol — deploying...",
+    "[  0.003400] euint64 storage initialized [OK]",
+    "[  0.004200] FHE.allowThis() registered [OK]",
+    "[  0.005100] ACL permissions set for user [OK]",
+    "[  OK  ] Vault ready. Your balance is now unreadable.",
   ]
 
   useEffect(() => {
@@ -81,10 +81,9 @@ export function SectionKernel({ section }: { section: TechSection }) {
         <span className="font-pixel-line text-7xl font-bold leading-none text-foreground/[0.08] md:text-9xl">
           {section.number}
         </span>
-        <div className="flex-1 pb-2">
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-border" />
-          </div>
+        <div className="pb-4">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{section.subtitle}</span>
+          <h2 className="font-pixel-line text-3xl font-bold text-foreground md:text-5xl">{section.title}</h2>
         </div>
       </motion.div>
 
@@ -165,17 +164,7 @@ export function SectionKernel({ section }: { section: TechSection }) {
         </div>
 
         {/* Bottom ASCII schematic */}
-        <div className="border-t border-border">
-          <div className="flex items-center gap-2 border-b border-border px-4 py-2">
-            <div className="h-1.5 w-1.5 bg-foreground" />
-            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              Architecture Schematic
-            </span>
-          </div>
-          <pre className="overflow-x-auto p-6 font-mono text-xs leading-relaxed text-muted-foreground">
-            {section.ascii}
-          </pre>
-        </div>
+       
       </motion.div>
     </div>
   )

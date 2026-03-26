@@ -11,38 +11,43 @@ export interface TechSection {
 
 export const techSections: TechSection[] = [
   {
-    id: "distributed-ledger",
+    id: "encrypted-vault",
     number: "01",
-    title: "Distributed Ledger",
-    subtitle: "Consensus architecture",
+    title: "Encrypted Vault",
+    subtitle: "Zama fhEVM on Sepolia",
     description:
-      "Decentralized systems where trust is computed, not assumed. Examining consensus mechanisms, Merkle trees, and the cryptographic primitives that secure distributed state.",
+      "Yes, your balance is on a public blockchain. No, nobody can read it. Vault stores every deposit as a euint64 ciphertext using Zama fhEVM. FHE.add() runs arithmetic on encrypted values — the contract never sees the number, and neither does anyone else except you.",
     ascii: `
-    Block #1021        Block #1022
-    ┌──────────┐      ┌──────────┐
-    │ Hash: 0xA│─────>│ Hash: 0xB│
-    │ Prev: 0x9│      │ Prev: 0xA│
-    │ Nonce: 42│      │ Nonce: 87│
-    │ Tx: 12   │      │ Tx: 8    │
-    └──────────┘      └──────────┘
-         │                  │
-    ┌────┴────┐        ┌────┴────┐
-    │ Merkle  │        │ Merkle  │
-    │  Root   │        │  Root   │
-    └─────────┘        └─────────┘`,
+    deposit(encHandle, inputProof)
+            │
+    ┌───────▼────────────────┐
+    │  FHE.fromExternal()     │
+    │  unpack externalEuint64 │
+    └───────┬────────────────┘
+            │
+    ┌───────▼────────────────┐
+    │  FHE.add(balance, amt)  │
+    │  result stays encrypted │
+    └───────┬────────────────┘
+            │
+    ┌───────▼────────────────┐
+    │  FHE.allowThis()        │
+    │  FHE.allow(userAddr)    │
+    │  write euint64 storage  │
+    └────────────────────────┘`,
     specs: [
-      { label: "Consensus", value: "Proof of Stake" },
-      { label: "Block Time", value: "~12 seconds" },
-      { label: "Hash Function", value: "SHA-256" },
-      { label: "Finality", value: "2 epochs (~12.8 min)" },
+      { label: "Storage type", value: "euint64 ciphertext" },
+      { label: "Network", value: "Ethereum Sepolia" },
+      { label: "FHE version", value: "fhEVM v0.9" },
+      { label: "Solidity", value: "0.8.28 + evmVersion cancun" },
     ],
     commands: [
-      "$ ledger query --block latest",
-      "Block #1022 | Hash: 0xB3F...A2",
-      "$ ledger verify --merkle-root",
-      "Root: 0x7D2...F1 [VALID]",
-      "$ ledger peers --count",
-      "Active Peers: 12,847",
+      "$ vault.balanceOf(userAddress)",
+      "→ euint64 handle (good luck reading that)",
+      "$ instance.createEncryptedInput(vault, user)",
+      "→ .add64(amount).encrypt()",
+      "→ { handles[0], inputProof }",
+      "$ vault.deposit(handles[0], inputProof) [OK]",
     ],
   },
   {
