@@ -159,21 +159,7 @@ export function PseudoTerminal() {
       transition={{ duration: 0.5 }}
       className="mx-auto max-w-7xl px-4 py-16 lg:px-8 lg:py-24"
     >
-      <div className="mb-8 flex flex-col gap-4">
-        <div className="flex items-center gap-4">
-          <span className="font-mono text-sm text-muted-foreground">{">"}</span>
-          <div className="h-[1px] w-12 bg-border" />
-          <span className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-            Interactive
-          </span>
-        </div>
-        <h2 className="font-pixel-line text-3xl font-bold tracking-tight text-foreground md:text-5xl">
-          Terminal
-        </h2>
-        <p className="max-w-prose font-mono text-sm leading-relaxed text-muted-foreground">
-          Explore the system. Type commands to interact with the ASCII Hub.
-        </p>
-      </div>
+      
 
       <div
         className="border border-border"
@@ -181,35 +167,11 @@ export function PseudoTerminal() {
         role="application"
         aria-label="Interactive pseudo-terminal"
       >
-        {/* Terminal header */}
-        <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
-          <div className="h-2.5 w-2.5 bg-foreground" />
-          <div className="h-2.5 w-2.5 bg-muted-foreground/50" />
-          <div className="h-2.5 w-2.5 bg-muted-foreground/30" />
-          <span className="ml-2 font-mono text-xs text-muted-foreground">
-            monochrome-hub ~ interactive
-          </span>
-        </div>
+       
 
         {/* Terminal body */}
-        <div
-          ref={scrollRef}
-          className="h-80 overflow-y-auto bg-secondary/20 p-4"
-        >
-          {lines.map((line, i) => (
-            <div
-              key={i}
-              className={`font-mono text-xs leading-relaxed ${
-                line.type === "input"
-                  ? "text-foreground"
-                  : line.type === "v0"
-                  ? "text-foreground brightness-125"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {line.content || "\u00A0"}
-            </div>
-          ))}
+       
+        
 
           {/* Input line */}
           <div className="relative flex items-center font-mono text-xs text-foreground">
@@ -230,7 +192,7 @@ export function PseudoTerminal() {
             />
           </div>
         </div>
-      </div>
+      
     </motion.section>
   )
 }

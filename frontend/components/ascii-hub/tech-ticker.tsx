@@ -3,22 +3,22 @@
 import { motion } from "framer-motion"
 
 const TECH_ITEMS = [
-  "Next.js 16",
-  "React 19",
-  "TypeScript",
-  "Tailwind CSS 4",
-  "Framer Motion",
-  "Geist Font",
-  "Vercel",
-  "Node.js",
-  "WebAssembly",
-  "Rust",
-  "Go",
-  "Linux Kernel",
-  "Docker",
-  "Kubernetes",
-  "gRPC",
-  "PostgreSQL",
+  "Zama fhEVM",
+  "Flow EVM",
+  "Ethereum Sepolia",
+  "ERC-8004",
+  "ERC-721",
+  "Cadence",
+  "IPFS + Pinata",
+  "euint64 Ciphertext",
+  "FHE.add()",
+  "keccak256",
+  "wagmi v2",
+  "Web3Auth Modal v10",
+  "Next.js 15",
+  "Solidity 0.8.28",
+  "Chain ID 545",
+  "Chain ID 11155111",
 ]
 
 export function TechTicker() {

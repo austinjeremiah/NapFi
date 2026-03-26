@@ -4,12 +4,12 @@ import { motion } from "framer-motion"
 import { Github, Twitter, Linkedin, ArrowUp } from "lucide-react"
 
 const ASCII_LOGO = `
- ███╗   ███╗██╗  ██╗
- ████╗ ████║██║  ██║
- ██╔████╔██║███████║
- ██║╚██╔╝██║██╔══██║
- ██║ ╚═╝ ██║██║  ██║
- ╚═╝     ╚═╝╚═╝  ╚═╝`
+ ███╗   ██╗ █████╗ ██████╗ ███████╗██╗
+ ████╗  ██║██╔══██╗██╔══██╗██╔════╝██║
+ ██╔██╗ ██║███████║██████╔╝█████╗  ██║
+ ██║╚██╗██║██╔══██║██╔═══╝ ██╔══╝  ██║
+ ██║ ╚████║██║  ██║██║     ██║     ██║
+ ╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝     ╚═╝     ╚═╝`
 
 const socialLinks = [
   { name: "GitHub", icon: Github, href: "https://github.com" },
@@ -41,8 +41,7 @@ export function Footer() {
               {ASCII_LOGO}
             </pre>
             <p className="mt-4 max-w-xs font-mono text-xs leading-relaxed text-muted-foreground">
-              A minimalist technical showcase built with precision.
-              Pure monochrome. Pure code.
+               Set it. Forget it. The agent saves for you — privately, on-chain, verifiably.
             </p>
           </motion.div>
 
@@ -115,10 +114,10 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-border pt-8 sm:flex-row">
           <span className="font-mono text-[10px] text-muted-foreground">
-            {"// "} Monochrome ASCII Hub &mdash; {new Date().getFullYear()}
+            {"// "} NaFI &mdash; {new Date().getFullYear()}
           </span>
           <span className="font-mono text-[10px] text-muted-foreground">
-            Built with precision. Rendered in monochrome.
+            Make Money While you sleep.
           </span>
         </div>
       </div>

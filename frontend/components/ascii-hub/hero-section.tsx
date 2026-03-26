@@ -16,6 +16,12 @@ export function HeroSection() {
 
   return (
     <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4">
+      <style>{`
+        @keyframes moneyShine {
+          0% { background-position: 100% 0; }
+          100% { background-position: -100% 0; }
+        }
+      `}</style>
       {/* Scanline overlay */}
       {motionEnabled && (
         <div
@@ -36,7 +42,7 @@ export function HeroSection() {
           playsInline
           className="h-full w-full object-cover opacity-80"
         >
-          <source src="/179649-862590064_medium.mp4" type="video/mp4" />
+          <source src="/91260-628462870_medium.mp4" type="video/mp4" />
         </video>
         {/* Dark overlay so text stays readable */}
         <div className="absolute inset-0 bg-background/60" />
@@ -50,19 +56,28 @@ export function HeroSection() {
           transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="flex flex-col items-start gap-6"
         >
-          <div className="inline-flex items-center gap-2 border border-border px-3 py-1 font-mono text-xs text-muted-foreground">
+          <div className="inline-flex items-center gap-2 border border-border bg-background/60 px-3 py-1 font-mono text-xs text-muted-foreground">
             <span className="inline-block h-1.5 w-1.5 bg-foreground" />
             <span>NapFi-CONFIDENTIAL SAVINGS</span>
           </div>
 
           <h1 className="font-pixel-line text-5xl font-bold leading-none tracking-tight text-foreground text-balance md:text-7xl lg:text-9xl">
-            Your money saves itself.
+            Your <span
+                style={{
+                  background: "linear-gradient(90deg, #1a7a3f 0%, #1a7a3f 30%, #4ade80 50%, #1a7a3f 70%, #1a7a3f 100%)",
+                  backgroundSize: "200% 100%",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                  animation: "moneyShine 2.5s linear infinite",
+                }}
+              >money</span> saves itself.
             <br />
             <span className="text-muted-foreground">Privately.</span>
           </h1>
 
           <p className="max-w-prose font-mono text-sm leading-relaxed text-muted-foreground md:text-base">
-            A DeFi savings agent that runs on a Flow scheduled transaction. Deposits go into a Zama fhEVM encrypted vault on Sepolia where only your wallet can decrypt the balance. Every execution is posted on-chain as an ERC-8004 verifiable receipt.
+            Yes, your balance is on a public blockchain. No, nobody can read it. Flow runs the deposits. Zama keeps the secret. You just set a goal.
           </p>
         </motion.div>
 

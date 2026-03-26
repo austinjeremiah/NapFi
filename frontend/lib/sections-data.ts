@@ -92,10 +92,10 @@ export const techSections: TechSection[] = [
   {
     id: "logic-synthesis",
     number: "03",
-    title: "Logic Synthesis",
-    subtitle: "Digital design",
+    title: "ERC-8004 Agent",
+    subtitle: "On-chain agent identity and receipts",
     description:
-      "Where Boolean algebra meets silicon. Logic gates, flip-flops, and RTL design form the bridge between abstract computation theory and physical circuit implementation.",
+      "The agent registers as an ERC-721 NFT in IdentityRegistry on Sepolia. After every deposit it uploads the execution log to IPFS, computes keccak256 of the JSON, and calls ReputationRegistry.giveFeedback(). Permanent. Verifiable. Nobody can fake it.",
     ascii: `
         A ──┐
             ├──[AND]──┐
@@ -103,67 +103,23 @@ export const techSections: TechSection[] = [
                       ├──[OR]── Q
         C ──┐         │
             ├──[AND]──┘
-        D ──┘
-
-    Truth Table:
-    A B C D │ Q
-    0 0 0 0 │ 0
-    1 1 0 0 │ 1
-    0 0 1 1 │ 1
-    1 1 1 1 │ 1`,
+        D ──┘`,
     specs: [
-      { label: "HDL", value: "SystemVerilog" },
-      { label: "Process", value: "5nm FinFET" },
-      { label: "Clock", value: "3.2 GHz" },
-      { label: "Gates", value: "~10B transistors" },
+      { label: "Agent type", value: "ERC-8004 Identity" },
+      { label: "Token standard", value: "ERC-721" },
+      { label: "Receipt storage", value: "IPFS via Pinata" },
+      { label: "Receipt hash", value: "keccak256(JSON)" },
     ],
     commands: [
-      "$ synth --target fpga design.sv",
-      "LUTs: 4,200 | FFs: 1,800",
-      "$ simulate --cycles 1000",
-      "All assertions passed [1000/1000]",
-      "$ timing-report --critical-path",
-      "Slack: +0.3ns [TIMING MET]",
+      "$ registry.register('ipfs://Qm...') → agentId: 42",
+      "$ pinata.upload(executionLog) → CID: Qm3x9...",
+      "$ keccak256(JSON.stringify(log))",
+      "→ 0x7f3a...b12c",
+      "$ reputationRegistry.giveFeedback(42, 100, ...)",
+      "Receipt posted on-chain [OK]",
     ],
   },
-  {
-    id: "hardware-abstraction",
-    number: "04",
-    title: "Hardware Abstraction",
-    subtitle: "Interface layers",
-    description:
-      "The invisible translators between software intent and hardware capability. HALs, device drivers, and firmware form the contract that makes portable computing possible.",
-    ascii: `
-    ┌─────────────────────────┐
-    │     APPLICATION          │
-    ├─────────────────────────┤
-    │     OS / RUNTIME         │
-    ├─────────────────────────┤
-    │     HAL INTERFACE        │
-    │  ┌─────┐ ┌─────┐       │
-    │  │ GPU │ │ NIC │ ...   │
-    │  └──┬──┘ └──┬──┘       │
-    ├─────┼───────┼───────────┤
-    │     │  SILICON │         │
-    │     └────┬────┘         │
-    │        [HW]              │
-    └─────────────────────────┘`,
-    specs: [
-      { label: "Interface", value: "MMIO / PIO" },
-      { label: "Bus", value: "PCIe Gen5 x16" },
-      { label: "DMA", value: "IOMMU Protected" },
-      { label: "Firmware", value: "UEFI 2.10" },
-    ],
-    commands: [
-      "$ lspci -v | head -4",
-      "00:02.0 VGA: Device [ACCEL]",
-      "  Memory at 0xFE000000 (64-bit)",
-      "$ hal query --device gpu0",
-      "Status: ACTIVE | Driver: v12.1",
-      "$ dmesg | grep firmware",
-      "Firmware loaded: hal-core v3.2.1",
-    ],
-  },
+  
 ]
 
 export const navLinks = techSections.map((s) => ({

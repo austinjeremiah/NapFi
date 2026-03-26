@@ -1,14 +1,49 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { navLinks } from "@/lib/sections-data"
-import { Menu, X } from "lucide-react"
+import { Menu, X, Volume2, VolumeX } from "lucide-react"
 
 export function Navigation() {
   const [activeSection, setActiveSection] = useState("")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [playing, setPlaying] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    const audio = new Audio("/Shane-McMahon-Here-Comes-The-Money.mp3")
+    audio.loop = true
+    audio.volume = 0.5
+    audioRef.current = audio
+
+    const play = () => {
+      audio.play().then(() => setPlaying(true)).catch(() => {})
+    }
+
+    // Try autoplay; browsers may block until interaction
+    play()
+    document.addEventListener("click", play, { once: true })
+    document.addEventListener("keydown", play, { once: true })
+
+    return () => {
+      audio.pause()
+      document.removeEventListener("click", play)
+      document.removeEventListener("keydown", play)
+    }
+  }, [])
+
+  const toggleMusic = () => {
+    const audio = audioRef.current
+    if (!audio) return
+    if (playing) {
+      audio.pause()
+      setPlaying(false)
+    } else {
+      audio.play().then(() => setPlaying(true)).catch(() => {})
+    }
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -78,6 +113,15 @@ export function Navigation() {
             </button>
           ))}
         </div>
+
+        {/* Music Toggle */}
+        <button
+          onClick={toggleMusic}
+          className="flex items-center p-2 text-muted-foreground transition-all duration-200 hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground focus-visible:outline-none"
+          aria-label={playing ? "Pause music" : "Play music"}
+        >
+          {playing ? <Volume2 size={16} /> : <VolumeX size={16} />}
+        </button>
 
         {/* Mobile Menu Toggle */}
         <button

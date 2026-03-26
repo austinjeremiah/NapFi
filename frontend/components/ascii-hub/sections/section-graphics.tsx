@@ -135,8 +135,8 @@ export function SectionGraphics({ section }: { section: TechSection }) {
           <span className="font-pixel-line text-7xl font-bold leading-none text-foreground/[0.25] md:text-9xl">
             {section.number}
           </span>
-          <div className="pb-4">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{section.subtitle}</span>
+          <div className="inline-block border-2 border-foreground px-6 py-4" style={{ boxShadow: shadow }}>
+            <span className="font-mono text-xs text-muted-foreground">{section.subtitle}</span>
             <h2 className="font-pixel-line text-3xl font-bold text-foreground md:text-5xl">
               {section.title}
             </h2>

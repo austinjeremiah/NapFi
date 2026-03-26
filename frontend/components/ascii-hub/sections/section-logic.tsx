@@ -21,8 +21,10 @@ function InteractiveTruthTable() {
     setInputs((prev) => ({ ...prev, [key]: prev[key] === 0 ? 1 : 0 }))
   }
 
-  // Q = (A AND B) OR (C AND D)
-  const Q = (inputs.A && inputs.B) || (inputs.C && inputs.D) ? 1 : 0
+  const labels = { A: "agentId", B: "deposit", C: "IPFS", D: "hash" }
+
+  // VALID = (agentId AND deposit) AND (IPFS AND hash)
+  const Q = (inputs.A && inputs.B) && (inputs.C && inputs.D) ? 1 : 0
   const AB = inputs.A && inputs.B ? 1 : 0
   const CD = inputs.C && inputs.D ? 1 : 0
 
@@ -31,7 +33,7 @@ function InteractiveTruthTable() {
       <div className="mb-4 flex items-center gap-2">
         <div className="h-1.5 w-1.5 bg-foreground" />
         <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          Interactive Logic Gate
+          Receipt Validator
         </span>
       </div>
 
@@ -47,7 +49,7 @@ function InteractiveTruthTable() {
                 : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
             }`}
           >
-            <span className="text-lg font-bold">{key}</span>
+            <span className="text-sm font-bold">{labels[key]}</span>
             <span className="text-[10px]">{inputs[key]}</span>
           </button>
         ))}
@@ -56,7 +58,7 @@ function InteractiveTruthTable() {
       {/* Gate visualization */}
       <div className="mt-6 flex items-center justify-center gap-6 font-mono text-xs">
         <div className="flex flex-col items-center gap-1">
-          <span className="text-[10px] text-muted-foreground">A & B</span>
+          <span className="text-[10px] text-muted-foreground">agentId & deposit</span>
           <div className={`flex h-8 w-16 items-center justify-center border ${AB ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground"}`}>
             AND
           </div>
@@ -66,13 +68,13 @@ function InteractiveTruthTable() {
         <div className="flex flex-col items-center gap-1">
           <span className="text-[10px] text-muted-foreground">{"-->"}</span>
           <div className={`flex h-8 w-16 items-center justify-center border ${Q ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground"}`}>
-            OR
+            AND
           </div>
-          <span className="text-lg font-bold text-foreground">Q={Q}</span>
+          <span className="text-lg font-bold text-foreground">{Q ? "VALID" : "INVALID"}</span>
         </div>
 
         <div className="flex flex-col items-center gap-1">
-          <span className="text-[10px] text-muted-foreground">C & D</span>
+          <span className="text-[10px] text-muted-foreground">IPFS & hash</span>
           <div className={`flex h-8 w-16 items-center justify-center border ${CD ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground"}`}>
             AND
           </div>
@@ -81,7 +83,7 @@ function InteractiveTruthTable() {
       </div>
 
       <div className="mt-4 text-center font-mono text-[10px] text-muted-foreground">
-        Q = (A AND B) OR (C AND D) — Click inputs to toggle
+        VALID = (agentId AND deposit) AND (IPFS AND hash) — Click to toggle
       </div>
     </div>
   )
@@ -111,7 +113,7 @@ function AnimatedWaveform() {
       <div className="mb-3 flex items-center gap-2">
         <div className="h-1.5 w-1.5 bg-foreground" />
         <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          Clock Signal
+          Receipt Feed
         </span>
       </div>
       <div className="flex h-12 items-end gap-px">
@@ -197,7 +199,7 @@ export function SectionLogic({ section }: { section: TechSection }) {
           >
             <div className="flex items-center gap-2 border-b border-border px-4 py-2">
               <div className="h-1.5 w-1.5 bg-foreground" />
-              <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Data Sheet</span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Contract Addresses</span>
             </div>
             <div className="grid grid-cols-2 gap-0">
               {section.specs.map((spec, i) => (

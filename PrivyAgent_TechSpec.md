@@ -25,7 +25,7 @@
 
 ## 1. What We Are Building
 
-PrivyAgent is a DeFi savings automation app where:
+NapFi is a DeFi savings automation app where:
 
 - A user signs in with Google or email — no wallet, no seed phrase required
 - They set a savings goal in plain English — for example "save 10 USDC every week"
