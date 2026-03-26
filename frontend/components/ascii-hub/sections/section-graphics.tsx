@@ -159,7 +159,7 @@ export function SectionGraphics({ section }: { section: TechSection }) {
         >
           <div className="mb-2 flex items-center gap-2">
             <span className="h-2 w-2 animate-pulse bg-foreground" />
-            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">SIGNAL — GPU WAVEFORM</span>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Flow like water</span>
           </div>
           <Oscilloscope />
         </motion.div>

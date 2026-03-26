@@ -53,10 +53,10 @@ export const techSections: TechSection[] = [
   {
     id: "graphics-pipelines",
     number: "02",
-    title: "Graphics Pipelines",
-    subtitle: "Rendering architecture",
+    title: "Flow Scheduler",
+    subtitle: "Scheduled transactions on Flow EVM",
     description:
-      "From vertices to pixels, the graphics pipeline transforms mathematical abstractions into visual reality. Shaders, rasterization, and GPU compute redefine what screens can display.",
+      "FlowTransactionScheduler fires a Cadence tx on Flow testnet (Chain ID 545) at the user's set interval. Pulls USDC via VaultSource.withdrawAvailable(), emits DepositTriggered(userAddr, amount, ts). Nobody asked the user. Nobody told them either.",
     ascii: `
     Vertices ──> Vertex Shader
                      │
