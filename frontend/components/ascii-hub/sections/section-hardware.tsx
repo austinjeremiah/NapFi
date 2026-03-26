@@ -158,7 +158,7 @@ function RegisterView() {
 
 export function SectionHardware({ section }: { section: TechSection }) {
   return (
-    <div className="py-20 lg:py-32">
+    <div className="relative py-20 lg:py-32">
       {/* Header: big number */}
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <motion.div
@@ -167,7 +167,7 @@ export function SectionHardware({ section }: { section: TechSection }) {
           viewport={{ once: true }}
           className="mb-12 flex items-center gap-8"
         >
-          <span className="font-pixel-line text-8xl font-bold text-foreground/[0.06] md:text-[10rem]">
+          <span className="font-pixel-line text-8xl font-bold text-foreground/[0.25] md:text-[10rem]">
             {section.number}
           </span>
           <div>

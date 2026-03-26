@@ -1,6 +1,7 @@
 "use client"
 
 import type { TechSection } from "@/lib/sections-data"
+import { DotPattern } from "@/components/ui/dot-pattern"
 import { SectionKernel } from "./sections/section-kernel"
 import { SectionNetwork } from "./sections/section-network"
 import { SectionLedger } from "./sections/section-ledger"
@@ -30,7 +31,8 @@ export function DomainSection({ section }: DomainSectionProps) {
   const SectionComponent = sectionMap[section.id] ?? SectionKernel
 
   return (
-    <section id={section.id} className="relative border-b border-border">
+    <section id={section.id} className="relative border-b border-foreground/30">
+      <DotPattern className="opacity-30" />
       <SectionComponent section={section} />
     </section>
   )

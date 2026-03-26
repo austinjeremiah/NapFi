@@ -75,10 +75,10 @@ export const techSections: TechSection[] = [
               │  └──┴──┴──┘ │
               └─────────────┘`,
     specs: [
-      { label: "API", value: "Vulkan / WebGPU" },
-      { label: "Shading", value: "PBR (Cook-Torrance)" },
-      { label: "Resolution", value: "4K @ 120Hz" },
-      { label: "Draw Calls", value: "< 1000 / frame" },
+      { label: "Goal Set", value: "User sets interval" },
+      { label: "Scheduler", value: "Cadence tx fires" },
+      { label: "VaultSource", value: "withdrawAvailable()" },
+      { label: "DepositTriggered", value: "Off-chain picks up" },
     ],
     commands: [
       "$ gpu-info --capabilities",

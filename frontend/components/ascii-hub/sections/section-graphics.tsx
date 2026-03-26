@@ -119,17 +119,10 @@ function Oscilloscope() {
   )
 }
 
-const pipelineStages = [
-  { name: "Input Assembly", icon: "IA", desc: "Vertex data" },
-  { name: "Vertex Shader", icon: "VS", desc: "Transform" },
-  { name: "Rasterizer", icon: "RS", desc: "Triangles → frags" },
-  { name: "Fragment Shader", icon: "FS", desc: "Per-pixel color" },
-  { name: "Output Merger", icon: "OM", desc: "Depth test + blend" },
-]
 
 export function SectionGraphics({ section }: { section: TechSection }) {
   return (
-    <div className="py-20 lg:py-32">
+    <div className="relative py-20 lg:py-32">
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
 
         {/* Header */}
@@ -139,7 +132,7 @@ export function SectionGraphics({ section }: { section: TechSection }) {
           viewport={{ once: true }}
           className="mb-10 flex items-end gap-6"
         >
-          <span className="font-pixel-line text-7xl font-bold leading-none text-foreground/[0.08] md:text-9xl">
+          <span className="font-pixel-line text-7xl font-bold leading-none text-foreground/[0.25] md:text-9xl">
             {section.number}
           </span>
           <div className="pb-4">
@@ -173,34 +166,6 @@ export function SectionGraphics({ section }: { section: TechSection }) {
         >
           {section.description}
         </motion.p>
-
-        {/* Pipeline stages */}
-        <div className="mt-12 flex flex-wrap items-center justify-center gap-0">
-          {pipelineStages.map((stage, i) => (
-            <motion.div
-              key={stage.name}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 + i * 0.1 }}
-              className="flex items-center"
-            >
-              <div className="flex flex-col items-center gap-2 px-4 py-2">
-                <div className="flex h-12 w-12 items-center justify-center border border-foreground bg-foreground font-mono text-sm font-bold text-background">
-                  {stage.icon}
-                </div>
-                <span className="font-mono text-[10px] font-bold text-foreground">{stage.name}</span>
-                <span className="font-mono text-[9px] text-muted-foreground">{stage.desc}</span>
-              </div>
-              {i < pipelineStages.length - 1 && (
-                <div className="hidden items-center md:flex" aria-hidden="true">
-                  <div className="h-px w-8 bg-border" />
-                  <div className="h-0 w-0 border-y-[3px] border-l-[5px] border-y-transparent border-l-foreground" />
-                </div>
-              )}
-            </motion.div>
-          ))}
-        </div>
 
         {/* Specs */}
         <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">

@@ -70,7 +70,7 @@ function BootSequence() {
 
 export function SectionKernel({ section }: { section: TechSection }) {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-32">
+    <div className="relative mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-32">
       {/* Section label with ghost number */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -78,7 +78,7 @@ export function SectionKernel({ section }: { section: TechSection }) {
         viewport={{ once: true }}
         className="mb-6 flex items-end gap-6"
       >
-        <span className="font-pixel-line text-7xl font-bold leading-none text-foreground/[0.08] md:text-9xl">
+        <span className="font-pixel-line text-7xl font-bold leading-none text-foreground/[0.25] md:text-9xl">
           {section.number}
         </span>
         <div className="pb-4">

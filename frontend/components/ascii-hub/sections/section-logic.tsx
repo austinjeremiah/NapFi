@@ -153,7 +153,7 @@ export function SectionLogic({ section }: { section: TechSection }) {
         viewport={{ once: true }}
         className="relative mb-12 flex items-start gap-6"
       >
-        <span className="font-pixel-line text-7xl font-bold leading-none text-foreground/[0.08] md:text-9xl">
+        <span className="font-pixel-line text-7xl font-bold leading-none text-foreground/[0.25] md:text-9xl">
           {section.number}
         </span>
         <div className="flex-1 pt-2">
