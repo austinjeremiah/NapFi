@@ -87,7 +87,7 @@ export function Footer() {
                 Tech Stack
               </span>
               <div className="flex flex-wrap gap-2">
-                {["Next.js", "React", "Tailwind", "Framer Motion", "Vercel"].map(
+                {["Zama fhEVM", "Flow EVM", "ERC-8004", "IPFS", "Sepolia"].map(
                   (tech) => (
                     <span
                       key={tech}
