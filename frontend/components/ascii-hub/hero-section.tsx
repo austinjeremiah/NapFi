@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { useWeb3Auth } from "@web3auth/modal/react"
@@ -10,9 +10,10 @@ export function HeroSection() {
   const [motionEnabled, setMotionEnabled] = useState(true)
   const { web3Auth, isConnected, status } = useWeb3Auth()
   const isConnecting = status === "connecting"
+  const userInitiated = useRef(false)
 
   useEffect(() => {
-    if (isConnected) {
+    if (isConnected && userInitiated.current) {
       router.push("/onboarding")
     }
   }, [isConnected, router])
@@ -21,6 +22,7 @@ export function HeroSection() {
     if (isConnected) {
       web3Auth?.logout()
     } else {
+      userInitiated.current = true
       web3Auth?.connect()
     }
   }
