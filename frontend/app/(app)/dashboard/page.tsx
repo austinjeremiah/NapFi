@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Lock, Zap, CheckCircle, ExternalLink, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { DotPattern } from "@/components/ui/dot-pattern"
+import { ScrambleText } from "@/components/ui/scramble-text"
 
 // ─── Placeholder data (replace with real contract/API calls) ─────────────────
 const MOCK_BALANCE = "47.20"
@@ -57,7 +58,9 @@ export default function DashboardPage() {
         {/* Page header */}
         <div className="border-l-2 border-foreground pl-4">
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">NapFi / Dashboard</p>
-          <h1 className="mt-1 font-pixel text-2xl font-bold text-foreground">Overview</h1>
+          <h1 className="mt-1 font-pixel text-2xl font-bold text-foreground">
+            <ScrambleText text="OVERVIEW" />
+          </h1>
         </div>
 
         {/* ── Section 1: Balance ─────────────────────────────────────── */}
@@ -98,7 +101,7 @@ export default function DashboardPage() {
               <p className="font-mono text-5xl font-bold text-foreground">${MOCK_BALANCE}</p>
               <div className="flex items-center gap-2">
                 <Lock size={11} className="text-muted-foreground" />
-                <p className="font-mono text-[10px] text-muted-foreground">
+                <p className="font-mono text-xs text-muted-foreground">
                   Stored encrypted on-chain. Nobody else can see it.
                 </p>
               </div>
@@ -119,7 +122,7 @@ export default function DashboardPage() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground border-l border-border pl-3"
+                  className="mt-2 font-mono text-xs leading-relaxed text-muted-foreground border-l border-border pl-3"
                 >
                   Your balance is stored as a ciphertext on Sepolia using Zama&apos;s fhEVM — a version of the EVM where numbers stay encrypted even during computation. Only your wallet can authorize decryption.
                 </motion.p>
@@ -143,18 +146,18 @@ export default function DashboardPage() {
                   MOCK_AGENT.status === "Active" ? "bg-green-500" : "bg-yellow-400"
                 }`}
               />
-              <span className="font-mono text-xs text-foreground">{MOCK_AGENT.status}</span>
+              <span className="font-mono text-base text-foreground">{MOCK_AGENT.status}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 border-t border-border pt-4">
             <div className="space-y-1">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Next deposit</p>
-              <p className="font-mono text-sm text-foreground">In {MOCK_AGENT.nextExecution}</p>
+              <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Next deposit</p>
+              <p className="font-mono text-base text-foreground">In {MOCK_AGENT.nextExecution}</p>
             </div>
             <div className="space-y-1">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Reputation</p>
-              <p className="font-mono text-sm text-foreground">{MOCK_AGENT.successfulRuns} successful executions</p>
+              <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Reputation</p>
+              <p className="font-mono text-base text-foreground">{MOCK_AGENT.successfulRuns} successful executions</p>
             </div>
           </div>
         </div>
@@ -169,12 +172,12 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Total saved</p>
-              <p className="font-mono text-sm text-foreground">${MOCK_GOAL.totalSaved}</p>
+              <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Total saved</p>
+              <p className="font-mono text-base text-foreground">${MOCK_GOAL.totalSaved}</p>
             </div>
             <div className="space-y-1">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Running since</p>
-              <p className="font-mono text-sm text-foreground">{MOCK_GOAL.since}</p>
+              <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Running since</p>
+              <p className="font-mono text-base text-foreground">{MOCK_GOAL.since}</p>
             </div>
           </div>
 
@@ -192,7 +195,7 @@ export default function DashboardPage() {
                 className="h-full bg-foreground"
               />
             </div>
-            <p className="font-mono text-[10px] text-muted-foreground">{progress.toFixed(0)}% to goal</p>
+            <p className="font-mono text-xs text-muted-foreground">{progress.toFixed(0)}% to goal</p>
           </div>
         </div>
 
@@ -202,7 +205,7 @@ export default function DashboardPage() {
             <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Recent Receipts</p>
             <Link
               href="/receipts"
-              className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               See all <ChevronRight size={10} />
             </Link>
@@ -214,15 +217,15 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-3">
                   <CheckCircle size={13} className="text-green-500 shrink-0" />
                   <div>
-                    <p className="font-mono text-xs text-foreground">{r.action}</p>
-                    <p className="font-mono text-[10px] text-muted-foreground">{r.date}</p>
+                    <p className="font-mono text-base text-foreground">{r.action}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{r.date}</p>
                   </div>
                 </div>
                 <a
                   href={r.ipfs}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   View proof <ExternalLink size={10} />
                 </a>
