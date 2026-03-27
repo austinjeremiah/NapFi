@@ -7,7 +7,7 @@ export default function SettingsPage() {
   return (
     <main className="min-h-screen bg-background px-4 py-12">
       <DotPattern className="pointer-events-none absolute inset-0 h-full w-full opacity-30" />
-
+ 
       <div className="mx-auto max-w-3xl">
         <div className="border-l-2 border-foreground pl-4">
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">NapFi / Settings</p>
