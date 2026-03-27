@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { Geist_Mono, Silkscreen } from "next/font/google"
 import { GeistPixelLine } from "geist/font/pixel"
 import { Analytics } from "@vercel/analytics/next"
+import { Providers } from "@/components/providers"
 import "./globals.css"
 
 const geistMono = Geist_Mono({
@@ -66,7 +67,7 @@ export default function RootLayout({
       <body
         className={`${geistMono.variable} ${silkscreen.variable} font-mono antialiased`}
       >
-        {children}
+        <Providers>{children}</Providers>
         <Analytics />
       </body>
     </html>

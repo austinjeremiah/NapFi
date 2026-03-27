@@ -2,9 +2,20 @@
 
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
+import { useWeb3Auth } from "@web3auth/modal/react"
 
 export function HeroSection() {
   const [motionEnabled, setMotionEnabled] = useState(true)
+  const { web3Auth, isConnected, status } = useWeb3Auth()
+  const isConnecting = status === "connecting"
+
+  const handleConnect = () => {
+    if (isConnected) {
+      web3Auth?.logout()
+    } else {
+      web3Auth?.connect()
+    }
+  }
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -71,7 +82,7 @@ export function HeroSection() {
                   backgroundClip: "text",
                   animation: "moneyShine 2.5s linear infinite",
                 }}
-              >money</span> saves itself.
+              >money</span> $aves itself.
             <br />
             <span className="text-muted-foreground">Privately.</span>
           </h1>
@@ -87,23 +98,19 @@ export function HeroSection() {
           transition={{ delay: 0.5, duration: 0.6 }}
           className="flex flex-col items-start gap-4 sm:flex-row"
         >
-          <a
-            href="#kernel-systems"
-            className="group flex items-center gap-2 border border-foreground bg-foreground px-6 py-3 font-mono text-sm text-background transition-all duration-200 hover:bg-transparent hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground focus-visible:outline-none"
+          <button
+            onClick={handleConnect}
+            disabled={isConnecting}
+            className="group flex items-center gap-2 border border-foreground bg-foreground px-6 py-3 font-mono text-sm text-background transition-all duration-200 hover:bg-transparent hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground focus-visible:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Explore the Modules
-            <span className="transition-transform duration-200 group-hover:translate-x-1">
-              {"->"}
-            </span>
-          </a>
-          <a
-            href="https://github.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 border border-border px-6 py-3 font-mono text-sm text-muted-foreground transition-all duration-200 hover:border-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground focus-visible:outline-none"
-          >
-            Clone the Repo
-          </a>
+            {isConnecting ? "Connecting..." : isConnected ? "Disconnect" : "Sleeeeeep"}
+            {!isConnecting && (
+              <span className="transition-transform duration-200 group-hover:translate-x-1">
+                {"->"}
+              </span>
+            )}
+          </button>
+          
         </motion.div>
       </div>
 
