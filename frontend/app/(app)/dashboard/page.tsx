@@ -9,8 +9,10 @@ import { formatDistanceToNow, parseISO } from "date-fns"
 import { DotPattern } from "@/components/ui/dot-pattern"
 import { ScrambleText } from "@/components/ui/scramble-text"
 import { getAgent, type AgentResponse, type ApiFrequency } from "@/lib/api"
+import { decryptBalance } from "@/lib/zama"
+import { sepoliaClient } from "@/lib/sepolia-client"
+import { ENCRYPTED_VAULT_ABI, CONTRACT_ADDRESSES } from "@/lib/contracts"
 
-const MOCK_BALANCE = "47.20"
 
 function freqLabel(f: ApiFrequency): string {
   if (f === "daily") return "day"
@@ -55,6 +57,8 @@ export default function DashboardPage() {
 
   const [balanceRevealed, setBalanceRevealed] = useState(false)
   const [balanceLoading, setBalanceLoading] = useState(false)
+  const [balanceError, setBalanceError] = useState("")
+  const [balance, setBalance] = useState<number | null>(null)
   const [fheExpanded, setFheExpanded] = useState(false)
 
   useEffect(() => {
@@ -118,10 +122,39 @@ export default function DashboardPage() {
   }, [walletAddress])
 
   const revealBalance = async () => {
+    if (!provider || !walletAddress) return
     setBalanceLoading(true)
-    await new Promise((r) => setTimeout(r, 1800))
-    setBalanceLoading(false)
-    setBalanceRevealed(true)
+    setBalanceError("")
+    try {
+      const has = await sepoliaClient.readContract({
+        address: CONTRACT_ADDRESSES.EncryptedVault,
+        abi: ENCRYPTED_VAULT_ABI,
+        functionName: "hasBalance",
+        args: [walletAddress as `0x${string}`],
+      }) as boolean
+
+      if (!has) {
+        setBalance(0)
+        setBalanceRevealed(true)
+        return
+      }
+
+      const handle = await sepoliaClient.readContract({
+        address: CONTRACT_ADDRESSES.EncryptedVault,
+        abi: ENCRYPTED_VAULT_ABI,
+        functionName: "getBalanceHandle",
+        args: [walletAddress as `0x${string}`],
+      }) as `0x${string}`
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cleartext = await decryptBalance(handle, provider as any)
+      setBalance(cleartext)
+      setBalanceRevealed(true)
+    } catch {
+      setBalanceError("Could not decrypt balance. Try again.")
+    } finally {
+      setBalanceLoading(false)
+    }
   }
 
   const nextDepositLabel = agent?.nextExecutionISO
@@ -193,7 +226,12 @@ export default function DashboardPage() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-2"
             >
-              <p className="font-mono text-5xl font-bold text-foreground">${MOCK_BALANCE}</p>
+              <p className="font-mono text-5xl font-bold text-foreground">
+                {balance !== null ? `$${balance.toFixed(2)}` : "$0.00"}
+              </p>
+              {balanceError && (
+                <p className="font-mono text-xs text-red-500">{balanceError}</p>
+              )}
               <div className="flex items-center gap-2">
                 <Lock size={11} className="text-muted-foreground" />
                 <p className="font-mono text-xs text-muted-foreground">

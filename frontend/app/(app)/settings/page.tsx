@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Copy, Check, ExternalLink, LogOut, AlertTriangle } from "lucide-react"
 import { useWeb3Auth } from "@web3auth/modal/react"
+import { BrowserProvider, Contract } from "ethers"
 import { ScrambleText } from "@/components/ui/scramble-text"
 import { DotPattern } from "@/components/ui/dot-pattern"
 import { getAgent, postSetup, type ApiFrequency } from "@/lib/api"
+import { encryptWithdrawAmount } from "@/lib/zama"
+import { ENCRYPTED_VAULT_ABI, CONTRACT_ADDRESSES } from "@/lib/contracts"
 
 type Frequency = "Daily" | "Weekly" | "Monthly"
 
@@ -79,6 +82,8 @@ export default function SettingsPage() {
   // Withdraw modal
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [withdrawing, setWithdrawing] = useState(false)
+  const [withdrawAmount, setWithdrawAmount] = useState("")
+  const [withdrawError, setWithdrawError] = useState<string | null>(null)
 
   const handleSaveGoal = async () => {
     if (!walletAddress) {
@@ -111,11 +116,30 @@ export default function SettingsPage() {
   }
 
   const handleWithdraw = async () => {
+    if (!provider || !walletAddress || !withdrawAmount || Number(withdrawAmount) <= 0) return
+    setWithdrawError(null)
     setWithdrawing(true)
-    // TODO: encrypt withdrawal amount client-side via relayer SDK, then call vault.withdraw()
-    await new Promise((r) => setTimeout(r, 1500))
-    setWithdrawing(false)
-    setShowWithdrawModal(false)
+    try {
+      const vault = vaultAddress || CONTRACT_ADDRESSES.EncryptedVault
+      const rawAmount = Math.round(Number(withdrawAmount) * 1_000_000) // USDC 6 decimals
+      const { encryptedAmount, inputProof } = await encryptWithdrawAmount(
+        rawAmount,
+        vault,
+        walletAddress,
+        provider as Parameters<typeof encryptWithdrawAmount>[3]
+      )
+      const ethersProvider = new BrowserProvider(provider as never)
+      const signer = await ethersProvider.getSigner()
+      const contract = new Contract(vault, ENCRYPTED_VAULT_ABI, signer)
+      const tx = await contract.withdraw(encryptedAmount, inputProof)
+      await tx.wait()
+      setShowWithdrawModal(false)
+      setWithdrawAmount("")
+    } catch (e) {
+      setWithdrawError(e instanceof Error ? e.message : "Withdrawal failed")
+    } finally {
+      setWithdrawing(false)
+    }
   }
 
   const handleSignOut = async () => {
@@ -281,16 +305,33 @@ export default function SettingsPage() {
               <div className="flex items-start gap-3">
                 <AlertTriangle size={18} className="text-yellow-400 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-pixel text-base font-bold text-foreground">Withdraw your savings?</p>
+                  <p className="font-pixel text-base font-bold text-foreground">Withdraw your savings</p>
                   <p className="mt-1 font-mono text-xs text-muted-foreground leading-relaxed">
-                    This will call <span className="text-foreground">vault.withdraw()</span> on Sepolia and return your full balance. The amount will be encrypted client-side before sending.
+                    Amount is encrypted client-side before calling <span className="text-foreground">vault.withdraw()</span> on Sepolia.
                   </p>
                 </div>
               </div>
 
+              <div className="flex items-center border border-border focus-within:border-foreground transition-colors">
+                <input
+                  type="number"
+                  min="0.000001"
+                  step="any"
+                  placeholder="0"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  className="flex-1 bg-transparent px-4 py-3 font-mono text-lg text-foreground outline-none placeholder:text-muted-foreground/40"
+                />
+                <span className="border-l border-border px-4 py-3 font-mono text-sm text-muted-foreground">USDC</span>
+              </div>
+
+              {withdrawError && (
+                <p className="font-mono text-xs text-red-500">{withdrawError}</p>
+              )}
+
               <div className="flex gap-3">
                 <button
-                  onClick={() => setShowWithdrawModal(false)}
+                  onClick={() => { setShowWithdrawModal(false); setWithdrawError(null); setWithdrawAmount("") }}
                   disabled={withdrawing}
                   className="flex-1 border border-border px-4 py-3 font-mono text-sm text-muted-foreground hover:border-foreground hover:text-foreground transition-all disabled:opacity-50"
                 >
@@ -298,7 +339,7 @@ export default function SettingsPage() {
                 </button>
                 <button
                   onClick={handleWithdraw}
-                  disabled={withdrawing}
+                  disabled={withdrawing || !withdrawAmount || Number(withdrawAmount) <= 0}
                   className="flex-1 border border-red-500 px-4 py-3 font-mono text-sm text-red-500 hover:bg-red-500 hover:text-background transition-all disabled:opacity-50"
                 >
                   {withdrawing ? "Processing..." : "Confirm Withdraw"}
