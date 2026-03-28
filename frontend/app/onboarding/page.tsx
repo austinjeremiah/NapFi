@@ -59,12 +59,33 @@ export default function OnboardingPage() {
     }, 600)
 
     try {
-      await postSetup({
+      const result = await postSetup({
         userAddress,
         goalAmountUSDC: Number(amount),
         frequency: toApiFrequency(frequency),
         yieldEnabled,
       })
+
+      if (result.txHashes) {
+        console.log("\n✅ Agent created successfully!")
+        console.log("Agent ID       :", result.agentId)
+        console.log("Vault          :", result.vaultAddress)
+        console.log("IPFS URI       :", result.ipfsUri)
+        console.log("TX register    :", `https://sepolia.etherscan.io/tx/${result.txHashes.register}`)
+        console.log("TX setWallet   :", `https://sepolia.etherscan.io/tx/${result.txHashes.setAgentWallet}`)
+        console.log("TX registerUA  :", `https://sepolia.etherscan.io/tx/${result.txHashes.registerUserAgent}`)
+      }
+
+      localStorage.setItem(
+        `napfi_setup_${userAddress.toLowerCase()}`,
+        JSON.stringify({
+          agentId: result.agentId,
+          vaultAddress: result.vaultAddress,
+          ipfsUri: result.ipfsUri,
+          txHashes: result.txHashes,
+        })
+      )
+
       router.push("/dashboard")
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Setup failed"

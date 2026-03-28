@@ -30,6 +30,22 @@ const MOCK_RECEIPTS = [
   { date: "Feb 27, 2026", action: "Deposit 10 USDC", ipfs: "https://ipfs.io/ipfs/placeholder5" },
 ]
 
+type CachedSetup = {
+  agentId: number
+  vaultAddress: string
+  ipfsUri?: string
+  txHashes?: AgentResponse["txHashes"]
+}
+
+function loadCachedSetup(address: string): CachedSetup | null {
+  try {
+    const raw = localStorage.getItem(`napfi_setup_${address.toLowerCase()}`)
+    return raw ? (JSON.parse(raw) as CachedSetup) : null
+  } catch {
+    return null
+  }
+}
+
 export default function DashboardPage() {
   const { provider, isConnected } = useWeb3Auth()
   const [walletAddress, setWalletAddress] = useState("")
@@ -64,7 +80,35 @@ export default function DashboardPage() {
     setAgentError(null)
     getAgent(walletAddress)
       .then((row) => {
-        setAgent(row)
+        const cached = loadCachedSetup(walletAddress)
+        const merged: AgentResponse | null = row
+          ? {
+              ...row,
+              ipfsUri: row.ipfsUri ?? cached?.ipfsUri,
+              txHashes: row.txHashes ?? cached?.txHashes,
+            }
+          : null
+
+        if (merged?.txHashes) {
+          console.log("\n✅ NapFi Agent Transactions")
+          console.log("Agent ID       :", merged.agentId)
+          console.log("Vault          :", merged.vaultAddress)
+          console.log("IPFS URI       :", merged.ipfsUri)
+          console.log(
+            "TX register    :",
+            `https://sepolia.etherscan.io/tx/${merged.txHashes.register}`
+          )
+          console.log(
+            "TX setWallet   :",
+            `https://sepolia.etherscan.io/tx/${merged.txHashes.setAgentWallet}`
+          )
+          console.log(
+            "TX registerUA  :",
+            `https://sepolia.etherscan.io/tx/${merged.txHashes.registerUserAgent}`
+          )
+        }
+
+        setAgent(merged)
       })
       .catch((e) => {
         setAgentError(e instanceof Error ? e.message : "Failed to load agent")
@@ -229,6 +273,51 @@ export default function DashboardPage() {
                   </p>
                 </div>
               </div>
+
+              {/* Tx hashes inline in agent status */}
+              {agent.txHashes && (
+                <div className="border-t border-border pt-4 space-y-2">
+                  <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground mb-3">
+                    On-chain Transactions
+                  </p>
+                  {[
+                    { label: "Register (ERC-8004)", hash: agent.txHashes.register },
+                    { label: "Set Agent Wallet",    hash: agent.txHashes.setAgentWallet },
+                    { label: "Register User Agent", hash: agent.txHashes.registerUserAgent },
+                  ].map(({ label, hash }) => (
+                    <div key={hash} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{label}</p>
+                        <p className="font-mono text-[11px] text-foreground truncate">{hash}</p>
+                      </div>
+                      <a
+                        href={`https://sepolia.etherscan.io/tx/${hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        View <ExternalLink size={9} />
+                      </a>
+                    </div>
+                  ))}
+                  {agent.ipfsUri && (
+                    <div className="flex items-center justify-between gap-3 pt-1">
+                      <div className="min-w-0">
+                        <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">IPFS Metadata</p>
+                        <p className="font-mono text-[11px] text-foreground truncate">{agent.ipfsUri}</p>
+                      </div>
+                      <a
+                        href={agent.ipfsUri}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        View <ExternalLink size={9} />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <p className="font-mono text-sm text-muted-foreground">
@@ -286,7 +375,54 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Section 4: Recent receipts ─────────────────────────────── */}
+        {/* ── Section 4: On-chain transactions ──────────────────────── */}
+        {agent?.txHashes && (
+          <div className="border border-border bg-background/95 p-6 space-y-4">
+            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              Agent Creation Transactions
+            </p>
+            <div className="divide-y divide-border">
+              {[
+                { label: "Register (ERC-8004 mint)", hash: agent.txHashes.register },
+                { label: "Set Agent Wallet", hash: agent.txHashes.setAgentWallet },
+                { label: "Register User Agent", hash: agent.txHashes.registerUserAgent },
+              ].map(({ label, hash }) => (
+                <div key={hash} className="flex items-center justify-between py-3 gap-4">
+                  <div className="space-y-0.5 min-w-0">
+                    <p className="font-mono text-xs text-foreground">{label}</p>
+                    <p className="font-mono text-[10px] text-muted-foreground truncate">{hash}</p>
+                  </div>
+                  <a
+                    href={`https://sepolia.etherscan.io/tx/${hash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Etherscan <ExternalLink size={10} />
+                  </a>
+                </div>
+              ))}
+            </div>
+            {agent.ipfsUri && (
+              <div className="border-t border-border pt-3 flex items-center justify-between gap-4">
+                <div className="space-y-0.5 min-w-0">
+                  <p className="font-mono text-xs text-foreground">Agent Metadata (IPFS)</p>
+                  <p className="font-mono text-[10px] text-muted-foreground truncate">{agent.ipfsUri}</p>
+                </div>
+                <a
+                  href={agent.ipfsUri}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  View <ExternalLink size={10} />
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Section 5: Recent receipts ─────────────────────────────── */}
         <div className="border border-border bg-background/95 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Recent Receipts</p>

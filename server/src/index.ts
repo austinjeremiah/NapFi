@@ -233,6 +233,14 @@ app.post("/api/setup", async (req, res) => {
 
     users.set(userAddress, record)
 
+    console.log(`\n✅ Agent created for ${userAddress}`)
+    console.log(`   Agent ID  : ${onchain.agentId}`)
+    console.log(`   Vault     : ${onchain.vaultAddress}`)
+    console.log(`   IPFS URI  : ${onchain.ipfsUri}`)
+    console.log(`   TX register        : https://sepolia.etherscan.io/tx/${onchain.txHashes.register}`)
+    console.log(`   TX setAgentWallet  : https://sepolia.etherscan.io/tx/${onchain.txHashes.setAgentWallet}`)
+    console.log(`   TX registerUserAgent: https://sepolia.etherscan.io/tx/${onchain.txHashes.registerUserAgent}\n`)
+
     res.json({
       agentId: record.agentId,
       vaultAddress: record.vaultAddress,
