@@ -1,8 +1,11 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
+import { useWeb3Auth } from "@web3auth/modal/react"
+import { postSetup, type ApiFrequency } from "@/lib/api"
 
 type Frequency = "Daily" | "Weekly" | "Monthly"
 
@@ -12,8 +15,18 @@ const LOADING_STEPS = [
   "Almost there...",
 ]
 
+function toApiFrequency(f: Frequency): ApiFrequency {
+  const m: Record<Frequency, ApiFrequency> = {
+    Daily: "daily",
+    Weekly: "weekly",
+    Monthly: "monthly",
+  }
+  return m[f]
+}
+
 export default function OnboardingPage() {
   const router = useRouter()
+  const { provider, isConnected } = useWeb3Auth()
 
   const [step, setStep] = useState(1)
   const [amount, setAmount] = useState("")
@@ -21,24 +34,45 @@ export default function OnboardingPage() {
   const [yieldEnabled, setYieldEnabled] = useState(true)
   const [loading, setLoading] = useState(false)
   const [loadingStep, setLoadingStep] = useState(0)
+  const [apiError, setApiError] = useState<string | null>(null)
 
   const handleSubmit = async () => {
-    setLoading(true)
+    setApiError(null)
 
-    // Cycle through loading messages
-    for (let i = 0; i < LOADING_STEPS.length; i++) {
-      setLoadingStep(i)
-      await new Promise((r) => setTimeout(r, 1200))
+    if (!isConnected || !provider) {
+      setApiError("Connect your wallet from the home page, then continue setup.")
+      return
     }
 
-    // TODO: replace with real POST /api/setup call
-    // const res = await fetch("/api/setup", {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify({ amount: Number(amount), frequency, yieldEnabled }),
-    // })
+    const accounts = (await provider.request({ method: "eth_accounts" })) as string[]
+    const userAddress = accounts?.[0]
+    if (!userAddress) {
+      setApiError("No wallet address. Try connecting again.")
+      return
+    }
 
-    router.push("/dashboard")
+    setLoading(true)
+    setLoadingStep(0)
+
+    const stepInterval = window.setInterval(() => {
+      setLoadingStep((s) => Math.min(s + 1, LOADING_STEPS.length - 1))
+    }, 600)
+
+    try {
+      await postSetup({
+        userAddress,
+        goalAmountUSDC: Number(amount),
+        frequency: toApiFrequency(frequency),
+        yieldEnabled,
+      })
+      router.push("/dashboard")
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Setup failed"
+      setApiError(msg)
+    } finally {
+      clearInterval(stepInterval)
+      setLoading(false)
+    }
   }
 
   return (
@@ -54,6 +88,21 @@ export default function OnboardingPage() {
             Configure your agent
           </h1>
         </div>
+
+        {!isConnected && (
+          <div className="mb-6 border border-border p-4 font-mono text-xs text-muted-foreground">
+            Connect your wallet from the home page first.{" "}
+            <Link href="/" className="text-foreground underline underline-offset-2">
+              Back to home
+            </Link>
+          </div>
+        )}
+
+        {apiError && (
+          <div className="mb-6 border border-destructive/50 bg-destructive/10 p-4 font-mono text-xs text-destructive">
+            {apiError}
+          </div>
+        )}
 
         {/* Step indicator */}
         <div className="mb-8 flex items-center gap-3">

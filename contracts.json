@@ -1,0 +1,12 @@
+{
+  "ethereumSepolia": {
+    "chainId": 11155111,
+    "contracts": {
+      "fheCounter": "0x94595717Fa86900A58eD8b0b77722EC30D595816",
+      "encryptedVault": "0x939F26Cd46B4A039C512EBE949F8C10D6545227e",
+      "agentRegistry": "0x7ca0388C3A895278D2f1F0161919Ab7D189f062F",
+      "erc8004IdentityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      "erc8004ReputationRegistry": "0x8004B663056A597Dffe9eCcC1965A193B7388713"
+    }
+  }
+}

@@ -1,28 +1,27 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Lock, Zap, CheckCircle, ExternalLink, ChevronRight } from "lucide-react"
+import { Lock, CheckCircle, ExternalLink, ChevronRight } from "lucide-react"
 import Link from "next/link"
+import { useWeb3Auth } from "@web3auth/modal/react"
+import { formatDistanceToNow, parseISO } from "date-fns"
 import { DotPattern } from "@/components/ui/dot-pattern"
 import { ScrambleText } from "@/components/ui/scramble-text"
+import { getAgent, type AgentResponse, type ApiFrequency } from "@/lib/api"
 
-// ─── Placeholder data (replace with real contract/API calls) ─────────────────
 const MOCK_BALANCE = "47.20"
-const MOCK_AGENT = {
-  name: "Your NapFi Agent",
-  id: "0x4e61...8004",
-  status: "Active" as "Active" | "Paused",
-  nextExecution: "3 days",
-  successfulRuns: 12,
+
+function freqLabel(f: ApiFrequency): string {
+  if (f === "daily") return "day"
+  if (f === "weekly") return "week"
+  return "month"
 }
-const MOCK_GOAL = {
-  amount: 10,
-  frequency: "week",
-  totalSaved: "120.40",
-  since: "March 15, 2026",
-  target: 500,
+
+function shortAddr(a: string) {
+  return `${a.slice(0, 6)}…${a.slice(-4)}`
 }
+
 const MOCK_RECEIPTS = [
   { date: "Mar 27, 2026", action: "Deposit 10 USDC", ipfs: "https://ipfs.io/ipfs/placeholder1" },
   { date: "Mar 20, 2026", action: "Deposit 10 USDC", ipfs: "https://ipfs.io/ipfs/placeholder2" },
@@ -30,38 +29,90 @@ const MOCK_RECEIPTS = [
   { date: "Mar 06, 2026", action: "Deposit 10 USDC", ipfs: "https://ipfs.io/ipfs/placeholder4" },
   { date: "Feb 27, 2026", action: "Deposit 10 USDC", ipfs: "https://ipfs.io/ipfs/placeholder5" },
 ]
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const { provider, isConnected } = useWeb3Auth()
+  const [walletAddress, setWalletAddress] = useState("")
+  const [agent, setAgent] = useState<AgentResponse | null>(null)
+  const [agentLoading, setAgentLoading] = useState(true)
+  const [agentError, setAgentError] = useState<string | null>(null)
+
   const [balanceRevealed, setBalanceRevealed] = useState(false)
   const [balanceLoading, setBalanceLoading] = useState(false)
   const [fheExpanded, setFheExpanded] = useState(false)
 
+  useEffect(() => {
+    if (!provider || !isConnected) {
+      setWalletAddress("")
+      setAgent(null)
+      setAgentLoading(false)
+      return
+    }
+    ;(provider.request({ method: "eth_accounts" }) as Promise<string[]>)
+      .then((accounts) => {
+        if (accounts?.[0]) setWalletAddress(accounts[0])
+      })
+      .catch(() => {})
+  }, [provider, isConnected])
+
+  useEffect(() => {
+    if (!walletAddress) {
+      setAgentLoading(false)
+      return
+    }
+    setAgentLoading(true)
+    setAgentError(null)
+    getAgent(walletAddress)
+      .then((row) => {
+        setAgent(row)
+      })
+      .catch((e) => {
+        setAgentError(e instanceof Error ? e.message : "Failed to load agent")
+        setAgent(null)
+      })
+      .finally(() => setAgentLoading(false))
+  }, [walletAddress])
+
   const revealBalance = async () => {
     setBalanceLoading(true)
-    // TODO: call vault.balanceOf(userAddress) → instance.publicDecrypt([handle])
     await new Promise((r) => setTimeout(r, 1800))
     setBalanceLoading(false)
     setBalanceRevealed(true)
   }
 
-  const progress = Math.min(
-    (parseFloat(MOCK_GOAL.totalSaved) / MOCK_GOAL.target) * 100,
-    100
-  )
+  const nextDepositLabel = agent?.nextExecutionISO
+    ? formatDistanceToNow(parseISO(agent.nextExecutionISO), { addSuffix: true })
+    : "—"
+
+  const target = 500
+  const totalSavedNum = agent?.goalAmountUSDC ? agent.goalAmountUSDC * 3 : 0
+  const progress = Math.min((totalSavedNum / target) * 100, 100)
 
   return (
     <main className="relative min-h-screen bg-background px-4 py-12">
       <DotPattern className="pointer-events-none absolute inset-0 h-full w-full opacity-30" />
       <div className="relative z-10 mx-auto max-w-6xl space-y-6">
 
-        {/* Page header */}
         <div className="border-l-2 border-foreground pl-4">
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">NapFi / Dashboard</p>
           <h1 className="mt-1 font-pixel text-2xl font-bold text-foreground">
             <ScrambleText text="OVERVIEW" />
           </h1>
         </div>
+
+        {!isConnected && (
+          <p className="font-mono text-sm text-muted-foreground border border-border p-4">
+            Connect your wallet to load your agent and vault info.
+          </p>
+        )}
+
+        {agentError && (
+          <p className="font-mono text-sm text-destructive border border-destructive/30 p-4">{agentError}</p>
+        )}
+
+        {agent?.chainOnly && agent.note && (
+          <p className="font-mono text-xs text-muted-foreground border border-border p-3">{agent.note}</p>
+        )}
 
         {/* ── Section 1: Balance ─────────────────────────────────────── */}
         <div className="border border-border bg-background/95 p-6 space-y-4">
@@ -108,7 +159,6 @@ export default function DashboardPage() {
             </motion.div>
           )}
 
-          {/* How? expandable */}
           <div>
             <button
               onClick={() => setFheExpanded(!fheExpanded)}
@@ -135,57 +185,95 @@ export default function DashboardPage() {
         <div className="border border-border bg-background/95 p-6 space-y-4">
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Agent Status</p>
 
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <p className="font-pixel text-lg font-bold text-foreground">{MOCK_AGENT.name}</p>
-              <p className="font-mono text-xs text-muted-foreground">ID: {MOCK_AGENT.id}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  MOCK_AGENT.status === "Active" ? "bg-green-500" : "bg-yellow-400"
-                }`}
-              />
-              <span className="font-mono text-base text-foreground">{MOCK_AGENT.status}</span>
-            </div>
-          </div>
+          {agentLoading ? (
+            <p className="font-mono text-sm text-muted-foreground">Loading agent…</p>
+          ) : agent ? (
+            <>
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <p className="font-pixel text-lg font-bold text-foreground">Your NapFi Agent</p>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    ERC-8004 ID: <span className="text-foreground">{String(agent.agentId)}</span>
+                  </p>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    Vault:{" "}
+                    <a
+                      href={`https://sepolia.etherscan.io/address/${agent.vaultAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-foreground underline underline-offset-2"
+                    >
+                      {shortAddr(agent.vaultAddress)}
+                    </a>
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      agent.status === "active" ? "bg-green-500" : "bg-yellow-400"
+                    }`}
+                  />
+                  <span className="font-mono text-base text-foreground capitalize">{agent.status}</span>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-3 border-t border-border pt-4">
-            <div className="space-y-1">
-              <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Next deposit</p>
-              <p className="font-mono text-base text-foreground">In {MOCK_AGENT.nextExecution}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Reputation</p>
-              <p className="font-mono text-base text-foreground">{MOCK_AGENT.successfulRuns} successful executions</p>
-            </div>
-          </div>
+              <div className="grid grid-cols-2 gap-3 border-t border-border pt-4">
+                <div className="space-y-1">
+                  <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Next deposit</p>
+                  <p className="font-mono text-base text-foreground">{nextDepositLabel}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Reputation</p>
+                  <p className="font-mono text-base text-foreground">
+                    {agent.totalExecutions} successful executions
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="font-mono text-sm text-muted-foreground">
+              No agent yet.{" "}
+              <Link href="/onboarding" className="text-foreground underline">
+                Complete setup
+              </Link>
+            </p>
+          )}
         </div>
 
         {/* ── Section 3: Goal summary ────────────────────────────────── */}
         <div className="border border-border bg-background/95 p-6 space-y-4">
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Savings Goal</p>
 
-          <p className="font-pixel text-xl font-bold text-foreground">
-            Saving {MOCK_GOAL.amount} USDC every {MOCK_GOAL.frequency}
-          </p>
+          {agent && agent.goalAmountUSDC > 0 ? (
+            <>
+              <p className="font-pixel text-xl font-bold text-foreground">
+                Saving {agent.goalAmountUSDC} USDC every {freqLabel(agent.frequency)}
+              </p>
+              <p className="font-mono text-xs text-muted-foreground">
+                Yield optimisation: {agent.yieldEnabled ? "On" : "Off"}
+              </p>
+            </>
+          ) : (
+            <p className="font-mono text-sm text-muted-foreground">
+              Goal details appear after you run setup from this session, or set them in Settings.
+            </p>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Total saved</p>
-              <p className="font-mono text-base text-foreground">${MOCK_GOAL.totalSaved}</p>
+              <p className="font-mono text-base text-foreground">${totalSavedNum.toFixed(2)}</p>
             </div>
             <div className="space-y-1">
-              <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Running since</p>
-              <p className="font-mono text-base text-foreground">{MOCK_GOAL.since}</p>
+              <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Progress</p>
+              <p className="font-mono text-base text-foreground">{progress.toFixed(0)}% to ${target}</p>
             </div>
           </div>
 
-          {/* Progress bar */}
           <div className="space-y-1">
             <div className="flex justify-between font-mono text-[10px] text-muted-foreground">
-              <span>${MOCK_GOAL.totalSaved} saved</span>
-              <span>Target ${MOCK_GOAL.target}</span>
+              <span>${totalSavedNum.toFixed(2)} saved</span>
+              <span>Target ${target}</span>
             </div>
             <div className="h-1.5 w-full bg-border">
               <motion.div
@@ -195,7 +283,6 @@ export default function DashboardPage() {
                 className="h-full bg-foreground"
               />
             </div>
-            <p className="font-mono text-xs text-muted-foreground">{progress.toFixed(0)}% to goal</p>
           </div>
         </div>
 

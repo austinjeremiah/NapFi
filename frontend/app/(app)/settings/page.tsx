@@ -7,13 +7,27 @@ import { Copy, Check, ExternalLink, LogOut, AlertTriangle } from "lucide-react"
 import { useWeb3Auth } from "@web3auth/modal/react"
 import { ScrambleText } from "@/components/ui/scramble-text"
 import { DotPattern } from "@/components/ui/dot-pattern"
-
-// ─── Placeholder data ─────────────────────────────────────────────────────────
-const MOCK_VAULT_ADDRESS = "0x1234567890abcdef1234567890abcdef12345678"
-const MOCK_GOAL = { amount: 10, frequency: "Weekly" as "Daily" | "Weekly" | "Monthly", yieldEnabled: true }
-// ─────────────────────────────────────────────────────────────────────────────
+import { getAgent, postSetup, type ApiFrequency } from "@/lib/api"
 
 type Frequency = "Daily" | "Weekly" | "Monthly"
+
+function toApiFrequency(f: Frequency): ApiFrequency {
+  const m: Record<Frequency, ApiFrequency> = {
+    Daily: "daily",
+    Weekly: "weekly",
+    Monthly: "monthly",
+  }
+  return m[f]
+}
+
+function apiToUiFrequency(f: ApiFrequency): Frequency {
+  const m: Record<ApiFrequency, Frequency> = {
+    daily: "Daily",
+    weekly: "Weekly",
+    monthly: "Monthly",
+  }
+  return m[f]
+}
 
 function shortAddress(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`
@@ -23,6 +37,8 @@ export default function SettingsPage() {
   const router = useRouter()
   const { web3Auth, provider, isConnected } = useWeb3Auth()
   const [walletAddress, setWalletAddress] = useState("")
+  const [vaultAddress, setVaultAddress] = useState("")
+  const [agentLoadError, setAgentLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!provider || !isConnected) return
@@ -32,11 +48,30 @@ export default function SettingsPage() {
   }, [provider, isConnected])
 
   // Goal state
-  const [amount, setAmount] = useState(String(MOCK_GOAL.amount))
-  const [frequency, setFrequency] = useState<Frequency>(MOCK_GOAL.frequency)
-  const [yieldEnabled, setYieldEnabled] = useState(MOCK_GOAL.yieldEnabled)
+  const [amount, setAmount] = useState("10")
+  const [frequency, setFrequency] = useState<Frequency>("Weekly")
+  const [yieldEnabled, setYieldEnabled] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!walletAddress) return
+    setAgentLoadError(null)
+    getAgent(walletAddress)
+      .then((a) => {
+        if (!a) return
+        setVaultAddress(a.vaultAddress)
+        if (a.goalAmountUSDC > 0) {
+          setAmount(String(a.goalAmountUSDC))
+          setFrequency(apiToUiFrequency(a.frequency))
+          setYieldEnabled(a.yieldEnabled)
+        }
+      })
+      .catch((e) => {
+        setAgentLoadError(e instanceof Error ? e.message : "Failed to load agent")
+      })
+  }, [walletAddress])
 
   // Copy state
   const [copied, setCopied] = useState(false)
@@ -46,12 +81,27 @@ export default function SettingsPage() {
   const [withdrawing, setWithdrawing] = useState(false)
 
   const handleSaveGoal = async () => {
+    if (!walletAddress) {
+      setSaveError("Connect your wallet first.")
+      return
+    }
+    setSaveError(null)
     setSaving(true)
-    // TODO: POST /api/setup with { amount: Number(amount), frequency, yieldEnabled }
-    await new Promise((r) => setTimeout(r, 1000))
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    try {
+      const res = await postSetup({
+        userAddress: walletAddress,
+        goalAmountUSDC: Number(amount),
+        frequency: toApiFrequency(frequency),
+        yieldEnabled,
+      })
+      setVaultAddress(res.vaultAddress)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Save failed")
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleCopy = () => {
@@ -90,6 +140,13 @@ export default function SettingsPage() {
         {/* ── Goal section ──────────────────────────────────────────── */}
         <div className="border border-border bg-background/95 p-6 space-y-6">
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Savings Goal</p>
+
+          {agentLoadError && (
+            <p className="font-mono text-xs text-destructive">{agentLoadError}</p>
+          )}
+          {saveError && (
+            <p className="font-mono text-xs text-destructive">{saveError}</p>
+          )}
 
           <div className="space-y-2">
             <p className="font-mono text-xs text-muted-foreground">Amount per execution</p>
@@ -155,12 +212,16 @@ export default function SettingsPage() {
           <div className="space-y-1">
             <p className="font-mono text-xs text-muted-foreground">Contract address (Sepolia)</p>
             <a
-              href={`https://sepolia.etherscan.io/address/${MOCK_VAULT_ADDRESS}`}
+              href={
+                vaultAddress
+                  ? `https://sepolia.etherscan.io/address/${vaultAddress}`
+                  : "#"
+              }
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 font-mono text-sm text-foreground hover:text-muted-foreground transition-colors"
+              className={`flex items-center gap-2 font-mono text-sm text-foreground hover:text-muted-foreground transition-colors ${!vaultAddress ? "pointer-events-none opacity-50" : ""}`}
             >
-              {shortAddress(MOCK_VAULT_ADDRESS)}
+              {vaultAddress ? shortAddress(vaultAddress) : "— load agent or save goal —"}
               <ExternalLink size={12} />
             </a>
           </div>
