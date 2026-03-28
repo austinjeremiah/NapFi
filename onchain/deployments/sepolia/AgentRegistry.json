@@ -1,0 +1,438 @@
+{
+  "address": "0x7ca0388C3A895278D2f1F0161919Ab7D189f062F",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "agentId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "vaultAddress",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "AgentRegistered",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "oldAgentId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newAgentId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "newVaultAddress",
+          "type": "address"
+        }
+      ],
+      "name": "AgentUpdated",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address[]",
+          "name": "users",
+          "type": "address[]"
+        }
+      ],
+      "name": "batchLookup",
+      "outputs": [
+        {
+          "internalType": "uint256[]",
+          "name": "agentIds",
+          "type": "uint256[]"
+        },
+        {
+          "internalType": "address[]",
+          "name": "vaultAddresses",
+          "type": "address[]"
+        },
+        {
+          "internalType": "bool[]",
+          "name": "registrationStatuses",
+          "type": "bool[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        }
+      ],
+      "name": "getAgentId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "agentId",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "agentId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getUserByAgent",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        }
+      ],
+      "name": "getVaultAddress",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "vault",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        }
+      ],
+      "name": "isRegistered",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        }
+      ],
+      "name": "lookup",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "agentId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "vaultAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "registrationStatus",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "registeredAt",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "agentId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "vault",
+          "type": "address"
+        }
+      ],
+      "name": "registerUserAgent",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x478c41dc8884cab94a4b37c3ccca1a88b4315e3901d6d4730d649ca84ce82238",
+  "receipt": {
+    "to": null,
+    "from": "0xe01Add0c3640a8314132bAF491d101A38ffEF4f0",
+    "contractAddress": "0x7ca0388C3A895278D2f1F0161919Ab7D189f062F",
+    "transactionIndex": 119,
+    "gasUsed": "604927",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0x7269fafe97df765cf1bd0f44f815ba79ca3ee14089d65873db21e22e73522766",
+    "transactionHash": "0x478c41dc8884cab94a4b37c3ccca1a88b4315e3901d6d4730d649ca84ce82238",
+    "logs": [],
+    "blockNumber": 10540511,
+    "cumulativeGasUsed": "24624453",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "numDeployments": 1,
+  "solcInputHash": "729df6ef4123bb2c71a289a226439469",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.27+commit.40a35a09\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"agentId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"vaultAddress\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"}],\"name\":\"AgentRegistered\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"oldAgentId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"newAgentId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"newVaultAddress\",\"type\":\"address\"}],\"name\":\"AgentUpdated\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"users\",\"type\":\"address[]\"}],\"name\":\"batchLookup\",\"outputs\":[{\"internalType\":\"uint256[]\",\"name\":\"agentIds\",\"type\":\"uint256[]\"},{\"internalType\":\"address[]\",\"name\":\"vaultAddresses\",\"type\":\"address[]\"},{\"internalType\":\"bool[]\",\"name\":\"registrationStatuses\",\"type\":\"bool[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"}],\"name\":\"getAgentId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"agentId\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"agentId\",\"type\":\"uint256\"}],\"name\":\"getUserByAgent\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"}],\"name\":\"getVaultAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"vault\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"}],\"name\":\"isRegistered\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"}],\"name\":\"lookup\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"agentId\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"vaultAddress\",\"type\":\"address\"},{\"internalType\":\"bool\",\"name\":\"registrationStatus\",\"type\":\"bool\"},{\"internalType\":\"uint256\",\"name\":\"registeredAt\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"agentId\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"vault\",\"type\":\"address\"}],\"name\":\"registerUserAgent\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Permissionless registration - anyone can register vault mappings  This contract serves as a lookup table for the frontend to discover: - Which ERC-8004 agent ID belongs to a user - Which EncryptedVault address stores their funds\",\"kind\":\"dev\",\"methods\":{\"batchLookup(address[])\":{\"params\":{\"users\":\"Array of user addresses\"},\"returns\":{\"agentIds\":\"Array of agent IDs\",\"registrationStatuses\":\"Array of registration statuses\",\"vaultAddresses\":\"Array of vault addresses\"}},\"getAgentId(address)\":{\"params\":{\"user\":\"User address\"},\"returns\":{\"agentId\":\"The ERC-8004 agent token ID\"}},\"getUserByAgent(uint256)\":{\"params\":{\"agentId\":\"ERC-8004 agent token ID\"},\"returns\":{\"user\":\"The user address associated with this agent\"}},\"getVaultAddress(address)\":{\"params\":{\"user\":\"User address\"},\"returns\":{\"vault\":\"The EncryptedVault contract address\"}},\"isRegistered(address)\":{\"params\":{\"user\":\"User address to check\"},\"returns\":{\"_0\":\"True if registered\"}},\"lookup(address)\":{\"params\":{\"user\":\"User address to query\"},\"returns\":{\"agentId\":\"The ERC-8004 agent token ID\",\"registeredAt\":\"Timestamp of registration\",\"registrationStatus\":\"Whether the user has registered\",\"vaultAddress\":\"The EncryptedVault contract address\"}},\"registerUserAgent(address,uint256,address)\":{\"details\":\"Permissionless - backend or user can call this\",\"params\":{\"agentId\":\"The ERC-8004 agent token ID\",\"user\":\"The user address to register\",\"vault\":\"The EncryptedVault contract address\"}}},\"title\":\"AgentRegistry\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"batchLookup(address[])\":{\"notice\":\"Batch lookup for multiple users\"},\"getAgentId(address)\":{\"notice\":\"Get agent ID for a user\"},\"getUserByAgent(uint256)\":{\"notice\":\"Get user address from agent ID\"},\"getVaultAddress(address)\":{\"notice\":\"Get vault address for a user\"},\"isRegistered(address)\":{\"notice\":\"Check if a user is registered\"},\"lookup(address)\":{\"notice\":\"Lookup agent and vault for a user\"},\"registerUserAgent(address,uint256,address)\":{\"notice\":\"Register a user's agent and vault mapping\"}},\"notice\":\"Registry mapping users to their ERC-8004 agents and encrypted vaults\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/AgentRegistry.sol\":\"AgentRegistry\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"none\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":800},\"remappings\":[]},\"sources\":{\"contracts/AgentRegistry.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.24;\\n\\n/**\\n * @title AgentRegistry\\n * @notice Registry mapping users to their ERC-8004 agents and encrypted vaults\\n * @dev Permissionless registration - anyone can register vault mappings\\n * \\n * This contract serves as a lookup table for the frontend to discover:\\n * - Which ERC-8004 agent ID belongs to a user\\n * - Which EncryptedVault address stores their funds\\n */\\ncontract AgentRegistry {\\n    \\n    // User data structure\\n    struct UserAgent {\\n        uint256 agentId;        // ERC-8004 token ID from IdentityRegistry\\n        address vaultAddress;   // EncryptedVault contract address\\n        bool isRegistered;      // Registration status\\n        uint256 registeredAt;   // Timestamp of registration\\n    }\\n    \\n    // Mapping from user address to their agent data\\n    mapping(address => UserAgent) private userAgents;\\n    \\n    // Reverse lookup: agent ID to user address\\n    mapping(uint256 => address) private agentToUser;\\n    \\n    // Events\\n    event AgentRegistered(\\n        address indexed user,\\n        uint256 indexed agentId,\\n        address vaultAddress,\\n        uint256 timestamp\\n    );\\n    \\n    event AgentUpdated(\\n        address indexed user,\\n        uint256 oldAgentId,\\n        uint256 newAgentId,\\n        address newVaultAddress\\n    );\\n    \\n    /**\\n     * @notice Register a user's agent and vault mapping\\n     * @dev Permissionless - backend or user can call this\\n     * @param user The user address to register\\n     * @param agentId The ERC-8004 agent token ID\\n     * @param vault The EncryptedVault contract address\\n     */\\n    function registerUserAgent(\\n        address user,\\n        uint256 agentId,\\n        address vault\\n    ) external {\\n        require(user != address(0), \\\"Invalid user address\\\");\\n        require(vault != address(0), \\\"Invalid vault address\\\");\\n        require(agentId > 0, \\\"Invalid agent ID\\\");\\n        \\n        UserAgent storage userAgent = userAgents[user];\\n        \\n        if (userAgent.isRegistered) {\\n            // Update existing registration\\n            uint256 oldAgentId = userAgent.agentId;\\n            \\n            // Clear old reverse mapping\\n            delete agentToUser[oldAgentId];\\n            \\n            // Update with new data\\n            userAgent.agentId = agentId;\\n            userAgent.vaultAddress = vault;\\n            \\n            // Set new reverse mapping\\n            agentToUser[agentId] = user;\\n            \\n            emit AgentUpdated(user, oldAgentId, agentId, vault);\\n        } else {\\n            // New registration\\n            userAgents[user] = UserAgent({\\n                agentId: agentId,\\n                vaultAddress: vault,\\n                isRegistered: true,\\n                registeredAt: block.timestamp\\n            });\\n            \\n            // Set reverse mapping\\n            agentToUser[agentId] = user;\\n            \\n            emit AgentRegistered(user, agentId, vault, block.timestamp);\\n        }\\n    }\\n    \\n    /**\\n     * @notice Lookup agent and vault for a user\\n     * @param user User address to query\\n     * @return agentId The ERC-8004 agent token ID\\n     * @return vaultAddress The EncryptedVault contract address\\n    * @return registrationStatus Whether the user has registered\\n     * @return registeredAt Timestamp of registration\\n     */\\n    function lookup(address user) external view returns (\\n        uint256 agentId,\\n        address vaultAddress,\\n        bool registrationStatus,\\n        uint256 registeredAt\\n    ) {\\n        UserAgent memory userAgent = userAgents[user];\\n        return (\\n            userAgent.agentId,\\n            userAgent.vaultAddress,\\n            userAgent.isRegistered,\\n            userAgent.registeredAt\\n        );\\n    }\\n    \\n    /**\\n     * @notice Get user address from agent ID\\n     * @param agentId ERC-8004 agent token ID\\n     * @return user The user address associated with this agent\\n     */\\n    function getUserByAgent(uint256 agentId) external view returns (address user) {\\n        return agentToUser[agentId];\\n    }\\n    \\n    /**\\n     * @notice Get vault address for a user\\n     * @param user User address\\n     * @return vault The EncryptedVault contract address\\n     */\\n    function getVaultAddress(address user) external view returns (address vault) {\\n        require(userAgents[user].isRegistered, \\\"User not registered\\\");\\n        return userAgents[user].vaultAddress;\\n    }\\n    \\n    /**\\n     * @notice Get agent ID for a user\\n     * @param user User address\\n     * @return agentId The ERC-8004 agent token ID\\n     */\\n    function getAgentId(address user) external view returns (uint256 agentId) {\\n        require(userAgents[user].isRegistered, \\\"User not registered\\\");\\n        return userAgents[user].agentId;\\n    }\\n    \\n    /**\\n     * @notice Check if a user is registered\\n     * @param user User address to check\\n     * @return True if registered\\n     */\\n    function isRegistered(address user) external view returns (bool) {\\n        return userAgents[user].isRegistered;\\n    }\\n    \\n    /**\\n     * @notice Batch lookup for multiple users\\n     * @param users Array of user addresses\\n     * @return agentIds Array of agent IDs\\n     * @return vaultAddresses Array of vault addresses\\n     * @return registrationStatuses Array of registration statuses\\n     */\\n    function batchLookup(address[] calldata users) external view returns (\\n        uint256[] memory agentIds,\\n        address[] memory vaultAddresses,\\n        bool[] memory registrationStatuses\\n    ) {\\n        uint256 length = users.length;\\n        agentIds = new uint256[](length);\\n        vaultAddresses = new address[](length);\\n        registrationStatuses = new bool[](length);\\n        \\n        for (uint256 i = 0; i < length; i++) {\\n            UserAgent memory userAgent = userAgents[users[i]];\\n            agentIds[i] = userAgent.agentId;\\n            vaultAddresses[i] = userAgent.vaultAddress;\\n            registrationStatuses[i] = userAgent.isRegistered;\\n        }\\n        \\n        return (agentIds, vaultAddresses, registrationStatuses);\\n    }\\n}\\n\",\"keccak256\":\"0x33e6f81d2f98a573722fc3d0ff3f097132bdb1403d477ef9b08c74bf0b518ad6\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x6080604052348015600e575f5ffd5b506109fc8061001c5f395ff3fe608060405234801561000f575f5ffd5b506004361061007a575f3560e01c80635f919c25116100585780635f919c25146100db578063c3c5a5471461011b578063d4b6b5da14610160578063ef88c31e146101f9575f5ffd5b8063042324b61461007e57806310ea8858146100a457806329d55d9f146100c6575b5f5ffd5b61009161008c36600461080e565b61020c565b6040519081526020015b60405180910390f35b6100b76100b236600461082e565b61029d565b60405161009b939291906108db565b6100d96100d4366004610977565b610490565b005b6101036100e93660046109b0565b5f908152600160205260409020546001600160a01b031690565b6040516001600160a01b03909116815260200161009b565b61015061012936600461080e565b6001600160a01b03165f90815260208190526040902060010154600160a01b900460ff1690565b604051901515815260200161009b565b6101cb61016e36600461080e565b6001600160a01b039081165f9081526020818152604091829020825160808101845281548082526001830154958616938201849052600160a01b90950460ff16151593810184905260029091015460609091018190529293909290565b604080519485526001600160a01b03909316602085015290151591830191909152606082015260800161009b565b61010361020736600461080e565b610761565b6001600160a01b0381165f90815260208190526040812060010154600160a01b900460ff166102825760405162461bcd60e51b815260206004820152601360248201527f55736572206e6f7420726567697374657265640000000000000000000000000060448201526064015b60405180910390fd5b506001600160a01b03165f9081526020819052604090205490565b60608080838067ffffffffffffffff8111156102bb576102bb6109c7565b6040519080825280602002602001820160405280156102e4578160200160208202803683370190505b5093508067ffffffffffffffff811115610300576103006109c7565b604051908082528060200260200182016040528015610329578160200160208202803683370190505b5092508067ffffffffffffffff811115610345576103456109c7565b60405190808252806020026020018201604052801561036e578160200160208202803683370190505b5091505f5b81811015610487575f5f5f898985818110610390576103906109db565b90506020020160208101906103a5919061080e565b6001600160a01b03908116825260208083019390935260409182015f2082516080810184528154808252600183015493841695820195909552600160a01b90920460ff1615159282019290925260029091015460608201528751909250879084908110610414576104146109db565b6020026020010181815250508060200151858381518110610437576104376109db565b60200260200101906001600160a01b031690816001600160a01b031681525050806040015184838151811061046e5761046e6109db565b9115156020928302919091019091015250600101610373565b50509250925092565b6001600160a01b0383166104e65760405162461bcd60e51b815260206004820152601460248201527f496e76616c6964207573657220616464726573730000000000000000000000006044820152606401610279565b6001600160a01b03811661053c5760405162461bcd60e51b815260206004820152601560248201527f496e76616c6964207661756c74206164647265737300000000000000000000006044820152606401610279565b5f821161058b5760405162461bcd60e51b815260206004820152601060248201527f496e76616c6964206167656e74204944000000000000000000000000000000006044820152606401610279565b6001600160a01b0383165f9081526020819052604090206001810154600160a01b900460ff161561065b5780545f818152600160208181526040808420805473ffffffffffffffffffffffffffffffffffffffff19908116909155888755928601805484166001600160a01b03898116918217909255898652948290208054909416908a169081179093558051858152918201889052810192909252907f974251bde605b5f525ec1b2e4a741ecf467f46b01db212d8ee8d2989179c586c9060600160405180910390a25061075b565b604080516080810182528481526001600160a01b038085166020808401918252600184860181815242606087018181528c87165f8181528087528a812099518a559651898601805495511515600160a01b027fffffffffffffffffffffff00000000000000000000000000000000000000000090961691909916179390931790965594516002909601959095558883529052839020805473ffffffffffffffffffffffffffffffffffffffff191683179055915185927f3376e7a45cb239a24d4377d97085f128ddca7c950b02bb7738610b8655d00e2c916107529187916001600160a01b03929092168252602082015260400190565b60405180910390a35b50505050565b6001600160a01b0381165f90815260208190526040812060010154600160a01b900460ff166107d25760405162461bcd60e51b815260206004820152601360248201527f55736572206e6f742072656769737465726564000000000000000000000000006044820152606401610279565b506001600160a01b039081165f908152602081905260409020600101541690565b80356001600160a01b0381168114610809575f5ffd5b919050565b5f6020828403121561081e575f5ffd5b610827826107f3565b9392505050565b5f5f6020838503121561083f575f5ffd5b823567ffffffffffffffff811115610855575f5ffd5b8301601f81018513610865575f5ffd5b803567ffffffffffffffff81111561087b575f5ffd5b8560208260051b840101111561088f575f5ffd5b6020919091019590945092505050565b5f8151808452602084019350602083015f5b828110156108d157815115158652602095860195909101906001016108b1565b5093949350505050565b606080825284519082018190525f9060208601906080840190835b818110156109145783518352602093840193909201916001016108f6565b5050838103602080860191909152865180835291810192508601905f5b818110156109585782516001600160a01b0316845260209384019390920191600101610931565b505050828103604084015261096d818561089f565b9695505050505050565b5f5f5f60608486031215610989575f5ffd5b610992846107f3565b9250602084013591506109a7604085016107f3565b90509250925092565b5f602082840312156109c0575f5ffd5b5035919050565b634e487b7160e01b5f52604160045260245ffd5b634e487b7160e01b5f52603260045260245ffdfea164736f6c634300081b000a",
+  "deployedBytecode": "0x608060405234801561000f575f5ffd5b506004361061007a575f3560e01c80635f919c25116100585780635f919c25146100db578063c3c5a5471461011b578063d4b6b5da14610160578063ef88c31e146101f9575f5ffd5b8063042324b61461007e57806310ea8858146100a457806329d55d9f146100c6575b5f5ffd5b61009161008c36600461080e565b61020c565b6040519081526020015b60405180910390f35b6100b76100b236600461082e565b61029d565b60405161009b939291906108db565b6100d96100d4366004610977565b610490565b005b6101036100e93660046109b0565b5f908152600160205260409020546001600160a01b031690565b6040516001600160a01b03909116815260200161009b565b61015061012936600461080e565b6001600160a01b03165f90815260208190526040902060010154600160a01b900460ff1690565b604051901515815260200161009b565b6101cb61016e36600461080e565b6001600160a01b039081165f9081526020818152604091829020825160808101845281548082526001830154958616938201849052600160a01b90950460ff16151593810184905260029091015460609091018190529293909290565b604080519485526001600160a01b03909316602085015290151591830191909152606082015260800161009b565b61010361020736600461080e565b610761565b6001600160a01b0381165f90815260208190526040812060010154600160a01b900460ff166102825760405162461bcd60e51b815260206004820152601360248201527f55736572206e6f7420726567697374657265640000000000000000000000000060448201526064015b60405180910390fd5b506001600160a01b03165f9081526020819052604090205490565b60608080838067ffffffffffffffff8111156102bb576102bb6109c7565b6040519080825280602002602001820160405280156102e4578160200160208202803683370190505b5093508067ffffffffffffffff811115610300576103006109c7565b604051908082528060200260200182016040528015610329578160200160208202803683370190505b5092508067ffffffffffffffff811115610345576103456109c7565b60405190808252806020026020018201604052801561036e578160200160208202803683370190505b5091505f5b81811015610487575f5f5f898985818110610390576103906109db565b90506020020160208101906103a5919061080e565b6001600160a01b03908116825260208083019390935260409182015f2082516080810184528154808252600183015493841695820195909552600160a01b90920460ff1615159282019290925260029091015460608201528751909250879084908110610414576104146109db565b6020026020010181815250508060200151858381518110610437576104376109db565b60200260200101906001600160a01b031690816001600160a01b031681525050806040015184838151811061046e5761046e6109db565b9115156020928302919091019091015250600101610373565b50509250925092565b6001600160a01b0383166104e65760405162461bcd60e51b815260206004820152601460248201527f496e76616c6964207573657220616464726573730000000000000000000000006044820152606401610279565b6001600160a01b03811661053c5760405162461bcd60e51b815260206004820152601560248201527f496e76616c6964207661756c74206164647265737300000000000000000000006044820152606401610279565b5f821161058b5760405162461bcd60e51b815260206004820152601060248201527f496e76616c6964206167656e74204944000000000000000000000000000000006044820152606401610279565b6001600160a01b0383165f9081526020819052604090206001810154600160a01b900460ff161561065b5780545f818152600160208181526040808420805473ffffffffffffffffffffffffffffffffffffffff19908116909155888755928601805484166001600160a01b03898116918217909255898652948290208054909416908a169081179093558051858152918201889052810192909252907f974251bde605b5f525ec1b2e4a741ecf467f46b01db212d8ee8d2989179c586c9060600160405180910390a25061075b565b604080516080810182528481526001600160a01b038085166020808401918252600184860181815242606087018181528c87165f8181528087528a812099518a559651898601805495511515600160a01b027fffffffffffffffffffffff00000000000000000000000000000000000000000090961691909916179390931790965594516002909601959095558883529052839020805473ffffffffffffffffffffffffffffffffffffffff191683179055915185927f3376e7a45cb239a24d4377d97085f128ddca7c950b02bb7738610b8655d00e2c916107529187916001600160a01b03929092168252602082015260400190565b60405180910390a35b50505050565b6001600160a01b0381165f90815260208190526040812060010154600160a01b900460ff166107d25760405162461bcd60e51b815260206004820152601360248201527f55736572206e6f742072656769737465726564000000000000000000000000006044820152606401610279565b506001600160a01b039081165f908152602081905260409020600101541690565b80356001600160a01b0381168114610809575f5ffd5b919050565b5f6020828403121561081e575f5ffd5b610827826107f3565b9392505050565b5f5f6020838503121561083f575f5ffd5b823567ffffffffffffffff811115610855575f5ffd5b8301601f81018513610865575f5ffd5b803567ffffffffffffffff81111561087b575f5ffd5b8560208260051b840101111561088f575f5ffd5b6020919091019590945092505050565b5f8151808452602084019350602083015f5b828110156108d157815115158652602095860195909101906001016108b1565b5093949350505050565b606080825284519082018190525f9060208601906080840190835b818110156109145783518352602093840193909201916001016108f6565b5050838103602080860191909152865180835291810192508601905f5b818110156109585782516001600160a01b0316845260209384019390920191600101610931565b505050828103604084015261096d818561089f565b9695505050505050565b5f5f5f60608486031215610989575f5ffd5b610992846107f3565b9250602084013591506109a7604085016107f3565b90509250925092565b5f602082840312156109c0575f5ffd5b5035919050565b634e487b7160e01b5f52604160045260245ffd5b634e487b7160e01b5f52603260045260245ffdfea164736f6c634300081b000a",
+  "devdoc": {
+    "details": "Permissionless registration - anyone can register vault mappings  This contract serves as a lookup table for the frontend to discover: - Which ERC-8004 agent ID belongs to a user - Which EncryptedVault address stores their funds",
+    "kind": "dev",
+    "methods": {
+      "batchLookup(address[])": {
+        "params": {
+          "users": "Array of user addresses"
+        },
+        "returns": {
+          "agentIds": "Array of agent IDs",
+          "registrationStatuses": "Array of registration statuses",
+          "vaultAddresses": "Array of vault addresses"
+        }
+      },
+      "getAgentId(address)": {
+        "params": {
+          "user": "User address"
+        },
+        "returns": {
+          "agentId": "The ERC-8004 agent token ID"
+        }
+      },
+      "getUserByAgent(uint256)": {
+        "params": {
+          "agentId": "ERC-8004 agent token ID"
+        },
+        "returns": {
+          "user": "The user address associated with this agent"
+        }
+      },
+      "getVaultAddress(address)": {
+        "params": {
+          "user": "User address"
+        },
+        "returns": {
+          "vault": "The EncryptedVault contract address"
+        }
+      },
+      "isRegistered(address)": {
+        "params": {
+          "user": "User address to check"
+        },
+        "returns": {
+          "_0": "True if registered"
+        }
+      },
+      "lookup(address)": {
+        "params": {
+          "user": "User address to query"
+        },
+        "returns": {
+          "agentId": "The ERC-8004 agent token ID",
+          "registeredAt": "Timestamp of registration",
+          "registrationStatus": "Whether the user has registered",
+          "vaultAddress": "The EncryptedVault contract address"
+        }
+      },
+      "registerUserAgent(address,uint256,address)": {
+        "details": "Permissionless - backend or user can call this",
+        "params": {
+          "agentId": "The ERC-8004 agent token ID",
+          "user": "The user address to register",
+          "vault": "The EncryptedVault contract address"
+        }
+      }
+    },
+    "title": "AgentRegistry",
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {
+      "batchLookup(address[])": {
+        "notice": "Batch lookup for multiple users"
+      },
+      "getAgentId(address)": {
+        "notice": "Get agent ID for a user"
+      },
+      "getUserByAgent(uint256)": {
+        "notice": "Get user address from agent ID"
+      },
+      "getVaultAddress(address)": {
+        "notice": "Get vault address for a user"
+      },
+      "isRegistered(address)": {
+        "notice": "Check if a user is registered"
+      },
+      "lookup(address)": {
+        "notice": "Lookup agent and vault for a user"
+      },
+      "registerUserAgent(address,uint256,address)": {
+        "notice": "Register a user's agent and vault mapping"
+      }
+    },
+    "notice": "Registry mapping users to their ERC-8004 agents and encrypted vaults",
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [
+      {
+        "astId": 42172,
+        "contract": "contracts/AgentRegistry.sol:AgentRegistry",
+        "label": "userAgents",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_mapping(t_address,t_struct(UserAgent)42167_storage)"
+      },
+      {
+        "astId": 42176,
+        "contract": "contracts/AgentRegistry.sol:AgentRegistry",
+        "label": "agentToUser",
+        "offset": 0,
+        "slot": "1",
+        "type": "t_mapping(t_uint256,t_address)"
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "label": "address",
+        "numberOfBytes": "20"
+      },
+      "t_bool": {
+        "encoding": "inplace",
+        "label": "bool",
+        "numberOfBytes": "1"
+      },
+      "t_mapping(t_address,t_struct(UserAgent)42167_storage)": {
+        "encoding": "mapping",
+        "key": "t_address",
+        "label": "mapping(address => struct AgentRegistry.UserAgent)",
+        "numberOfBytes": "32",
+        "value": "t_struct(UserAgent)42167_storage"
+      },
+      "t_mapping(t_uint256,t_address)": {
+        "encoding": "mapping",
+        "key": "t_uint256",
+        "label": "mapping(uint256 => address)",
+        "numberOfBytes": "32",
+        "value": "t_address"
+      },
+      "t_struct(UserAgent)42167_storage": {
+        "encoding": "inplace",
+        "label": "struct AgentRegistry.UserAgent",
+        "members": [
+          {
+            "astId": 42160,
+            "contract": "contracts/AgentRegistry.sol:AgentRegistry",
+            "label": "agentId",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint256"
+          },
+          {
+            "astId": 42162,
+            "contract": "contracts/AgentRegistry.sol:AgentRegistry",
+            "label": "vaultAddress",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_address"
+          },
+          {
+            "astId": 42164,
+            "contract": "contracts/AgentRegistry.sol:AgentRegistry",
+            "label": "isRegistered",
+            "offset": 20,
+            "slot": "1",
+            "type": "t_bool"
+          },
+          {
+            "astId": 42166,
+            "contract": "contracts/AgentRegistry.sol:AgentRegistry",
+            "label": "registeredAt",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_uint256"
+          }
+        ],
+        "numberOfBytes": "96"
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "label": "uint256",
+        "numberOfBytes": "32"
+      }
+    }
+  }
+}
