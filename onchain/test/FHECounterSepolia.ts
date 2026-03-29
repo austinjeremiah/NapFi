@@ -25,24 +25,13 @@ describe("FHECounterSepolia", function () {
       this.skip();
     }
 
-    try {
-      const deployment = await deployments.get("FHECounter");
-      fheCounterContractAddress = deployment.address;
-
-      fheCounterContract = await ethers.getContractAt(
-        "FHECounter",
-        fheCounterContractAddress
-      );
-    } catch (e) {
-      (e as Error).message += ". Run: npx hardhat deploy --network sepolia";
-      throw e;
-    }
-
     const ethSigners: HardhatEthersSigner[] = await ethers.getSigners();
+    signers = { alice: ethSigners[0] };
 
-    signers = {
-      alice: ethSigners[0],
-    };
+    // Use the persisted Sepolia deployment so explorer shows txs at this address.
+    const deployment = await deployments.get("FHECounter");
+    fheCounterContractAddress = deployment.address;
+    fheCounterContract = await ethers.getContractAt("FHECounter", fheCounterContractAddress);
   });
 
   beforeEach(async () => {
@@ -52,70 +41,65 @@ describe("FHECounterSepolia", function () {
 
   it("increment the counter by 1", async function () {
     steps = 8;
-    this.timeout(4 * 60000);
 
-    progress("Encrypting '0'...");
+    this.timeout(4 * 40000);
 
-    const encryptedZero = await fhevm
-      .createEncryptedInput(fheCounterContractAddress, signers.alice.address)
-      .add32(0)
-      .encrypt();
+    const latestBlock = await ethers.provider.getBlock("latest");
+    if (!latestBlock) {
+      throw new Error("Could not fetch latest block for decryption validity window");
+    }
 
-    progress("Calling increment(0)...");
+    const decryptValidity = {
+      startTimestamp: latestBlock.timestamp - 60,
+      durationDays: 30,
+    };
 
-    let tx = await fheCounterContract
-      .connect(signers.alice)
-      .increment(encryptedZero.handles[0], encryptedZero.inputProof);
+    progress(`Call FHECounter.getCount() before increment...`);
+    const encryptedCountBeforeInc = await fheCounterContract.getCount();
 
-    await tx.wait();
+    let clearCountBeforeInc = 0;
+    if (encryptedCountBeforeInc !== ethers.ZeroHash) {
+      progress(`Decrypting count before increment=${encryptedCountBeforeInc}...`);
+      clearCountBeforeInc = Number(
+        await fhevm.userDecryptEuint(
+          FhevmType.euint32,
+          encryptedCountBeforeInc,
+          fheCounterContractAddress,
+          signers.alice,
+          { validity: decryptValidity },
+        ),
+      );
+      progress(`Clear count before increment=${clearCountBeforeInc}`);
+    }
 
-    progress("Reading encrypted count...");
-
-    const encryptedCountBefore = await fheCounterContract.getCount();
-
-    expect(encryptedCountBefore).to.not.equal(ethers.ZeroHash);
-
-    progress("Decrypting count...");
-
-    const clearCountBefore = await fhevm.userDecryptEuint(
-      FhevmType.euint32,
-      encryptedCountBefore,
-      fheCounterContractAddress,
-      signers.alice
-    );
-
-    progress(`Count before increment = ${clearCountBefore}`);
-
-    progress("Encrypting '1'...");
-
+    progress(`Encrypting '1'...`);
     const encryptedOne = await fhevm
       .createEncryptedInput(fheCounterContractAddress, signers.alice.address)
       .add32(1)
       .encrypt();
 
-    progress("Calling increment(1)...");
-
-    tx = await fheCounterContract
-      .connect(signers.alice)
-      .increment(encryptedOne.handles[0], encryptedOne.inputProof);
-
-    await tx.wait();
-
-    progress("Reading encrypted count after increment...");
-
-    const encryptedCountAfter = await fheCounterContract.getCount();
-
-    progress("Decrypting new count...");
-
-    const clearCountAfter = await fhevm.userDecryptEuint(
-      FhevmType.euint32,
-      encryptedCountAfter,
-      fheCounterContractAddress,
-      signers.alice
+    progress(
+      `Call increment(1) FHECounter=${fheCounterContractAddress} handle=${ethers.hexlify(encryptedOne.handles[0])} signer=${signers.alice.address}...`,
     );
+    const tx = await fheCounterContract.connect(signers.alice).increment(encryptedOne.handles[0], encryptedOne.inputProof);
+    const receipt = await tx.wait(2);
+    progress(`Increment tx mined hash=${tx.hash} block=${receipt?.blockNumber}`);
 
-    progress(`Count after increment = ${clearCountAfter}`);
+    progress(`Call FHECounter.getCount() after increment...`);
+    const encryptedCountAfterInc = await fheCounterContract.getCount();
 
-    expect(Number(clearCountAfter) - Number(clearCountBefore)).to.equal(1);
+    progress(`Decrypting FHECounter.getCount()=${encryptedCountAfterInc}...`);
+    const clearCountAfterInc = Number(
+      await fhevm.userDecryptEuint(
+        FhevmType.euint32,
+        encryptedCountAfterInc,
+        fheCounterContractAddress,
+        signers.alice,
+        { validity: decryptValidity },
+      ),
+    );
+    progress(`Clear FHECounter.getCount()=${clearCountAfterInc}`);
+
+    expect(clearCountAfterInc - clearCountBeforeInc).to.eq(1);
   });
 });
