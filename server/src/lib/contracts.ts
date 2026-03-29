@@ -61,3 +61,8 @@ export function loadIdentityRegistryAbi(): InterfaceAbi {
   const raw = readFileSync(join(__dirname, "../abis/IdentityRegistry.json"), "utf8")
   return abiFromArtifactOrArray(raw)
 }
+
+export function loadReputationRegistryAbi(): InterfaceAbi {
+  const raw = readFileSync(join(__dirname, "../abis/ReputationRegistry.json"), "utf8")
+  return abiFromArtifactOrArray(raw)
+}

@@ -6,6 +6,8 @@ import { dirname, join } from "path"
 import { fileURLToPath } from "url"
 import { runNapFiOnchainSetup } from "./lib/onchainSetup.js"
 import { lookupUserOnChain } from "./lib/registryLookup.js"
+import { startFlowListener } from "./lib/flowListener.js"
+import { scheduleFlowDeposit, hasFlowEnv } from "./lib/flowScheduler.js"
 import { getAddress } from "ethers"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -87,10 +89,15 @@ function hasOnchainEnv(): boolean {
 }
 
 const PORT = Number(process.env.PORT) || 3001
-const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000"
+/** Comma-separated in .env — include every browser origin you use (localhost vs 127.0.0.1 differ for CORS). */
+const CORS_ORIGINS = (process.env.CORS_ORIGIN ||
+  "http://localhost:3000,http://127.0.0.1:3000")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean)
 
 const app = express()
-app.use(cors({ origin: CORS_ORIGIN, credentials: true }))
+app.use(cors({ origin: CORS_ORIGINS, credentials: true }))
 app.use(express.json())
 
 app.get("/", (_req, res) => {
@@ -233,6 +240,27 @@ app.post("/api/setup", async (req, res) => {
 
     users.set(userAddress, record)
 
+    // ── Schedule Flow recurring deposit (non-blocking; logs warn if env missing)
+    if (hasFlowEnv()) {
+      scheduleFlowDeposit({
+        userEVMAddress:    getAddress(userAddress),
+        depositAmountUSDC: goal,
+        frequency,
+      })
+        .then(({ initTxId, scheduleTxId }) => {
+          console.log(`   Flow initHandler  : ${initTxId}`)
+          console.log(`   Flow schedule     : ${scheduleTxId}`)
+        })
+        .catch((e: unknown) => {
+          const msg = e instanceof Error ? e.message : String(e)
+          console.warn(`[Flow] scheduleFlowDeposit failed: ${msg}`)
+        })
+    } else {
+      console.log(
+        "   [Flow] Scheduler skipped — set FLOW_ACCESS_NODE, FLOW_ACCOUNT_ADDRESS, FLOW_PRIVATE_KEY, AGENT_SCHEDULER_ADDRESS"
+      )
+    }
+
     console.log(`\n✅ Agent created for ${userAddress}`)
     console.log(`   Agent ID  : ${onchain.agentId}`)
     console.log(`   Vault     : ${onchain.vaultAddress}`)
@@ -320,11 +348,15 @@ app.get("/api/receipts/:agentId", (req, res) => {
 
 const server = app.listen(PORT, () => {
   console.log(`NapFi API listening on http://localhost:${PORT}`)
-  console.log(`CORS origin: ${CORS_ORIGIN}`)
+  console.log(`CORS origins: ${CORS_ORIGINS.join(", ")}`)
   console.log(
     `On-chain setup ready: ${hasOnchainEnv()} (needs SEPOLIA_RPC_URL, BACKEND_PRIVATE_KEY, LIGHTHOUSE_API_KEY or PINATA_JWT)`
   )
   console.log(`Default vault from contracts.json: ${process.env.VAULT_CONTRACT_ADDRESS || VAULT_DEFAULT}`)
+  console.log(`Flow scheduler ready: ${hasFlowEnv()}`)
+
+  // Start listening for Flow DepositTriggered events
+  startFlowListener()
 })
 
 server.on("error", (err: NodeJS.ErrnoException) => {
