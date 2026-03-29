@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { sepoliaClient } from "@/lib/sepolia-client"
-import { AGENT_REGISTRY_ABI, ENCRYPTED_VAULT_ABI, CONTRACT_ADDRESSES } from "@/lib/contracts"
+import { AGENT_REGISTRY_ABI, ENCRYPTED_VAULT_ABI, CONTRACT_ADDRESSES } from "@/lib/contract-defs"
 
 interface AgentData {
   agentId: string

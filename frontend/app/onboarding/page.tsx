@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
@@ -35,6 +35,10 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
   const [loadingStep, setLoadingStep] = useState(0)
   const [apiError, setApiError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (step === 3) router.prefetch("/dashboard")
+  }, [step, router])
 
   const handleSubmit = async () => {
     setApiError(null)
@@ -86,7 +90,7 @@ export default function OnboardingPage() {
         })
       )
 
-      router.push("/dashboard")
+      window.location.assign("/dashboard")
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Setup failed"
       setApiError(msg)

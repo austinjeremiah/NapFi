@@ -9,6 +9,32 @@ export function getApiBaseUrl(): string {
   return base.replace(/\/$/, "")
 }
 
+function isNetworkFetchFailure(e: unknown): boolean {
+  if (e instanceof TypeError) return true
+  if (e instanceof Error && /failed to fetch/i.test(e.message)) return true
+  return false
+}
+
+function networkFailureHelp(): string {
+  const base = getApiBaseUrl() || "(NEXT_PUBLIC_API_BASE_URL not set)"
+  return (
+    `Cannot reach the NapFi API (${base}). ` +
+    `Start the API in another terminal: cd server && npm run dev. ` +
+    `If the site URL uses 127.0.0.1, open http://localhost:3000 instead (or add that origin to CORS_ORIGIN in server/.env).`
+  )
+}
+
+async function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init)
+  } catch (e) {
+    if (isNetworkFetchFailure(e)) {
+      throw new Error(networkFailureHelp())
+    }
+    throw e
+  }
+}
+
 export type ApiFrequency = "daily" | "weekly" | "monthly"
 
 export type SetupRequest = {
@@ -56,7 +82,7 @@ export async function postSetup(body: SetupRequest): Promise<SetupResponse> {
   if (!base) {
     throw new Error("NEXT_PUBLIC_API_BASE_URL is not set")
   }
-  const res = await fetch(`${base}/api/setup`, {
+  const res = await apiFetch(`${base}/api/setup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -73,7 +99,7 @@ export async function getAgent(userAddress: string): Promise<AgentResponse | nul
   if (!base) {
     throw new Error("NEXT_PUBLIC_API_BASE_URL is not set")
   }
-  const res = await fetch(`${base}/api/agent/${encodeURIComponent(userAddress)}`)
+  const res = await apiFetch(`${base}/api/agent/${encodeURIComponent(userAddress)}`)
   if (res.status === 404) return null
   const data = (await res.json().catch(() => ({}))) as AgentResponse & { error?: string }
   if (!res.ok) {

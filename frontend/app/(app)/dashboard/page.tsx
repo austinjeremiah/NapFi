@@ -1,17 +1,22 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Lock, CheckCircle, ExternalLink, ChevronRight } from "lucide-react"
+import { Lock, CheckCircle, ExternalLink, ChevronRight, Wallet } from "lucide-react"
 import Link from "next/link"
 import { useWeb3Auth } from "@web3auth/modal/react"
 import { formatDistanceToNow, parseISO } from "date-fns"
 import { DotPattern } from "@/components/ui/dot-pattern"
 import { ScrambleText } from "@/components/ui/scramble-text"
 import { getAgent, type AgentResponse, type ApiFrequency } from "@/lib/api"
-import { decryptBalance } from "@/lib/zama"
 import { sepoliaClient } from "@/lib/sepolia-client"
-import { ENCRYPTED_VAULT_ABI, CONTRACT_ADDRESSES } from "@/lib/contracts"
+import { ENCRYPTED_VAULT_ABI, CONTRACT_ADDRESSES, VAULT_ADDRESS } from "@/lib/contract-defs"
+import {
+  depositUsdcFromWallet,
+  getVaultUsdcBalance,
+  getWalletUsdcBalance,
+  withdrawUsdcFromVault,
+} from "@/lib/contracts"
 
 
 function freqLabel(f: ApiFrequency): string {
@@ -52,8 +57,18 @@ export default function DashboardPage() {
   const { provider, isConnected } = useWeb3Auth()
   const [walletAddress, setWalletAddress] = useState("")
   const [agent, setAgent] = useState<AgentResponse | null>(null)
-  const [agentLoading, setAgentLoading] = useState(true)
+  const [agentLoading, setAgentLoading] = useState(false)
   const [agentError, setAgentError] = useState<string | null>(null)
+
+  const [walletUsdc, setWalletUsdc] = useState<string | null>(null)
+  const [plainVaultUsdc, setPlainVaultUsdc] = useState<string | null>(null)
+  const [usdcLoading, setUsdcLoading] = useState(false)
+  const [depositAmount, setDepositAmount] = useState("10")
+  const [withdrawAmount, setWithdrawAmount] = useState("")
+  const [depositBusy, setDepositBusy] = useState(false)
+  const [withdrawBusy, setWithdrawBusy] = useState(false)
+  const [usdcActionError, setUsdcActionError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const [balanceRevealed, setBalanceRevealed] = useState(false)
   const [balanceLoading, setBalanceLoading] = useState(false)
@@ -121,6 +136,28 @@ export default function DashboardPage() {
       .finally(() => setAgentLoading(false))
   }, [walletAddress])
 
+  const refreshUsdcBalances = useCallback(() => {
+    if (!walletAddress) {
+      setWalletUsdc(null)
+      setPlainVaultUsdc(null)
+      return
+    }
+    setUsdcLoading(true)
+    Promise.all([
+      getWalletUsdcBalance(walletAddress).catch(() => "—"),
+      getVaultUsdcBalance(walletAddress).catch(() => "—"),
+    ])
+      .then(([w, v]) => {
+        setWalletUsdc(w)
+        setPlainVaultUsdc(v)
+      })
+      .finally(() => setUsdcLoading(false))
+  }, [walletAddress])
+
+  useEffect(() => {
+    refreshUsdcBalances()
+  }, [refreshUsdcBalances])
+
   const revealBalance = async () => {
     if (!provider || !walletAddress) return
     setBalanceLoading(true)
@@ -146,6 +183,7 @@ export default function DashboardPage() {
         args: [walletAddress as `0x${string}`],
       }) as `0x${string}`
 
+      const { decryptBalance } = await import("@/lib/zama")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cleartext = await decryptBalance(handle, provider as any)
       setBalance(cleartext)
@@ -164,6 +202,57 @@ export default function DashboardPage() {
   const target = 500
   const totalSavedNum = agent?.goalAmountUSDC ? agent.goalAmountUSDC * 3 : 0
   const progress = Math.min((totalSavedNum / target) * 100, 100)
+
+  const vaultMismatch =
+    Boolean(agent?.vaultAddress) &&
+    agent!.vaultAddress.toLowerCase() !== VAULT_ADDRESS.toLowerCase()
+
+  const handleDepositUsdc = async () => {
+    if (!provider || !walletAddress) return
+    const n = Number(depositAmount)
+    if (!Number.isFinite(n) || n <= 0) {
+      setUsdcActionError("Enter a positive USDC amount.")
+      return
+    }
+    setUsdcActionError(null)
+    setDepositBusy(true)
+    try {
+      await depositUsdcFromWallet(provider as never, n)
+      refreshUsdcBalances()
+      setDepositAmount(String(n))
+    } catch (e) {
+      setUsdcActionError(e instanceof Error ? e.message : "Deposit failed")
+    } finally {
+      setDepositBusy(false)
+    }
+  }
+
+  const handleWithdrawUsdc = async () => {
+    if (!provider || !walletAddress) return
+    const n = Number(withdrawAmount)
+    if (!Number.isFinite(n) || n <= 0) {
+      setUsdcActionError("Enter a positive USDC amount to withdraw.")
+      return
+    }
+    setUsdcActionError(null)
+    setWithdrawBusy(true)
+    try {
+      await withdrawUsdcFromVault(provider as never, n)
+      refreshUsdcBalances()
+      setWithdrawAmount("")
+    } catch (e) {
+      setUsdcActionError(e instanceof Error ? e.message : "Withdraw failed")
+    } finally {
+      setWithdrawBusy(false)
+    }
+  }
+
+  const copyAddress = () => {
+    if (!walletAddress) return
+    void navigator.clipboard.writeText(walletAddress)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <main className="relative min-h-screen bg-background px-4 py-12">
@@ -189,6 +278,127 @@ export default function DashboardPage() {
 
         {agent?.chainOnly && agent.note && (
           <p className="font-mono text-xs text-muted-foreground border border-border p-3">{agent.note}</p>
+        )}
+
+        {vaultMismatch && (
+          <div className="border border-yellow-500/50 bg-yellow-500/10 p-4 font-mono text-xs text-foreground space-y-2">
+            <p className="uppercase tracking-widest text-yellow-600 dark:text-yellow-400">
+              Registry vault ≠ USDC vault
+            </p>
+            <p className="text-muted-foreground">
+              Agent registry points to{" "}
+              <span className="text-foreground">{shortAddr(agent?.vaultAddress ?? "")}</span>.
+              USDC deposit/withdraw uses the NapFi vault{" "}
+              <span className="text-foreground">{shortAddr(VAULT_ADDRESS)}</span> (Circle test USDC + depositUSDC).
+            </p>
+          </div>
+        )}
+
+        {/* ── Wallet + Sepolia USDC ─────────────────────────────────── */}
+        {isConnected && walletAddress && (
+          <div className="border border-border bg-background/95 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+                Wallet &amp; USDC (Sepolia)
+              </p>
+              <Wallet size={14} className="text-muted-foreground" />
+            </div>
+
+            <div className="space-y-2">
+              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Your address</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href={`https://sepolia.etherscan.io/address/${walletAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-sm text-foreground underline underline-offset-2 break-all"
+                >
+                  {walletAddress}
+                </a>
+                <button
+                  type="button"
+                  onClick={copyAddress}
+                  className="border border-border px-3 py-1 font-mono text-[10px] uppercase tracking-wider hover:border-foreground transition-colors"
+                >
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border pt-4">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
+                  Wallet USDC
+                </p>
+                <p className="font-mono text-2xl font-bold text-foreground">
+                  {usdcLoading ? "…" : walletUsdc ?? "—"}{" "}
+                  <span className="text-sm font-normal text-muted-foreground">USDC</span>
+                </p>
+              </div>
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
+                  In NapFi USDC vault
+                </p>
+                <p className="font-mono text-2xl font-bold text-foreground">
+                  {usdcLoading ? "…" : plainVaultUsdc ?? "—"}{" "}
+                  <span className="text-sm font-normal text-muted-foreground">USDC</span>
+                </p>
+              </div>
+            </div>
+
+            {usdcActionError && (
+              <p className="font-mono text-xs text-destructive border border-destructive/30 p-3">{usdcActionError}</p>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-border pt-4">
+              <div className="space-y-2">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Deposit USDC</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    className="flex-1 border border-border bg-transparent px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-foreground"
+                  />
+                  <button
+                    type="button"
+                    disabled={depositBusy || !provider}
+                    onClick={handleDepositUsdc}
+                    className="border border-foreground bg-foreground px-4 py-2 font-mono text-xs text-background hover:bg-transparent hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {depositBusy ? "Signing…" : "Deposit"}
+                  </button>
+                </div>
+                <p className="font-mono text-[10px] text-muted-foreground">
+                  Approve + deposit into {shortAddr(VAULT_ADDRESS)} on Sepolia.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Withdraw USDC</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="Amount"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    className="flex-1 border border-border bg-transparent px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-foreground"
+                  />
+                  <button
+                    type="button"
+                    disabled={withdrawBusy || !provider}
+                    onClick={handleWithdrawUsdc}
+                    className="border border-border px-4 py-2 font-mono text-xs text-foreground hover:border-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {withdrawBusy ? "Signing…" : "Withdraw"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ── Section 1: Balance ─────────────────────────────────────── */}

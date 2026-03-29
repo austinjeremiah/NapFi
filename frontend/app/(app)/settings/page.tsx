@@ -9,8 +9,7 @@ import { BrowserProvider, Contract } from "ethers"
 import { ScrambleText } from "@/components/ui/scramble-text"
 import { DotPattern } from "@/components/ui/dot-pattern"
 import { getAgent, postSetup, type ApiFrequency } from "@/lib/api"
-import { encryptWithdrawAmount } from "@/lib/zama"
-import { ENCRYPTED_VAULT_ABI, CONTRACT_ADDRESSES } from "@/lib/contracts"
+import { ENCRYPTED_VAULT_ABI, CONTRACT_ADDRESSES } from "@/lib/contract-defs"
 
 type Frequency = "Daily" | "Weekly" | "Monthly"
 
@@ -120,13 +119,14 @@ export default function SettingsPage() {
     setWithdrawError(null)
     setWithdrawing(true)
     try {
+      const { encryptWithdrawAmount } = await import("@/lib/zama")
       const vault = vaultAddress || CONTRACT_ADDRESSES.EncryptedVault
       const rawAmount = Math.round(Number(withdrawAmount) * 1_000_000) // USDC 6 decimals
       const { encryptedAmount, inputProof } = await encryptWithdrawAmount(
         rawAmount,
         vault,
         walletAddress,
-        provider as Parameters<typeof encryptWithdrawAmount>[3]
+        provider as never
       )
       const ethersProvider = new BrowserProvider(provider as never)
       const signer = await ethersProvider.getSigner()

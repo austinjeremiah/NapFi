@@ -1,0 +1,43 @@
+{
+  "contracts": {
+    "FlowTransactionScheduler": {
+      "aliases": {
+        "testnet": "0x8c5303eaa26202d6"
+      }
+    },
+    "FlowTransactionSchedulerUtils": {
+      "aliases": {
+        "testnet": "0x8c5303eaa26202d6"
+      }
+    },
+    "AgentScheduler": {
+      "source": "./cadence/contracts/AgentScheduler.cdc",
+      "aliases": {
+        "testnet": "0xc4d59c93cd6c2c43"
+      }
+    }
+  },
+  "networks": {
+    "emulator": "127.0.0.1:3569",
+    "testnet": "access.devnet.nodes.onflow.org:9000",
+    "mainnet": "access.mainnet.nodes.onflow.org:9000"
+  },
+  "accounts": {
+    "napfi-testnet-account": {
+      "address": "0xc4d59c93cd6c2c43",
+      "key": {
+        "type": "hex",
+        "index": 0,
+        "signatureAlgorithm": "ECDSA_P256",
+        "hashAlgorithm": "SHA3_256",
+        "privateKey": "91b713092339ed0e0e3a627207940e044660ebf254e8b3f429b13a1638ceef62"
+      }
+    }
+  },
+  "deployments": {
+    "emulator": {},
+    "testnet": {
+      "napfi-testnet-account": ["AgentScheduler"]
+    }
+  }
+}
