@@ -1,39 +1,56 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import { useWeb3Auth } from "@web3auth/modal/react"
+import { format, parseISO } from "date-fns"
 import { ScrambleText } from "@/components/ui/scramble-text"
 import { DotPattern } from "@/components/ui/dot-pattern"
 import { CheckCircle, ExternalLink, ChevronDown } from "lucide-react"
+import { getAgent, type AgentResponse, type AutomationReceipt } from "@/lib/api"
 
-// ─── Placeholder data (replace with GET /api/receipts/:agentId) ──────────────
-const MOCK_SUMMARY = {
-  totalDeposits: 12,
-  totalSaved: "120.40",
-  trustScore: 94,
-}
-
-const MOCK_RECEIPTS = [
-  { date: "Mar 27, 2026", action: "Scheduled Deposit", amount: "10 USDC", status: "Success", tx: "0xabc1...def1", ipfs: "https://ipfs.io/ipfs/placeholder1" },
-  { date: "Mar 20, 2026", action: "Scheduled Deposit", amount: "10 USDC", status: "Success", tx: "0xabc2...def2", ipfs: "https://ipfs.io/ipfs/placeholder2" },
-  { date: "Mar 13, 2026", action: "Scheduled Deposit", amount: "10 USDC", status: "Success", tx: "0xabc3...def3", ipfs: "https://ipfs.io/ipfs/placeholder3" },
-  { date: "Mar 06, 2026", action: "Scheduled Deposit", amount: "10 USDC", status: "Success", tx: "0xabc4...def4", ipfs: "https://ipfs.io/ipfs/placeholder4" },
-  { date: "Feb 27, 2026", action: "Scheduled Deposit", amount: "10 USDC", status: "Success", tx: "0xabc5...def5", ipfs: "https://ipfs.io/ipfs/placeholder5" },
-  { date: "Feb 20, 2026", action: "Scheduled Deposit", amount: "10 USDC", status: "Success", tx: "0xabc6...def6", ipfs: "https://ipfs.io/ipfs/placeholder6" },
-  { date: "Feb 13, 2026", action: "Scheduled Deposit", amount: "10 USDC", status: "Success", tx: "0xabc7...def7", ipfs: "https://ipfs.io/ipfs/placeholder7" },
-  { date: "Feb 06, 2026", action: "Scheduled Deposit", amount: "10 USDC", status: "Success", tx: "0xabc8...def8", ipfs: "https://ipfs.io/ipfs/placeholder8" },
-  { date: "Jan 30, 2026", action: "Scheduled Deposit", amount: "10 USDC", status: "Success", tx: "0xabc9...def9", ipfs: "https://ipfs.io/ipfs/placeholder9" },
-  { date: "Jan 23, 2026", action: "Scheduled Deposit", amount: "10 USDC", status: "Success", tx: "0xabca...defa", ipfs: "https://ipfs.io/ipfs/placeholder10" },
-  { date: "Jan 16, 2026", action: "Scheduled Deposit", amount: "10 USDC", status: "Success", tx: "0xabcb...defb", ipfs: "https://ipfs.io/ipfs/placeholder11" },
-  { date: "Jan 09, 2026", action: "Scheduled Deposit", amount: "10 USDC", status: "Success", tx: "0xabcc...defc", ipfs: "https://ipfs.io/ipfs/placeholder12" },
-]
 const PAGE_SIZE = 20
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function ReceiptsPage() {
+  const { provider, isConnected } = useWeb3Auth()
+  const [walletAddress, setWalletAddress] = useState("")
+  const [agent, setAgent] = useState<AgentResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [visible, setVisible] = useState(PAGE_SIZE)
 
-  const shown = MOCK_RECEIPTS.slice(0, visible)
-  const hasMore = visible < MOCK_RECEIPTS.length
+  useEffect(() => {
+    if (!provider || !isConnected) {
+      setWalletAddress("")
+      return
+    }
+    ;(provider.request({ method: "eth_accounts" }) as Promise<string[]>)
+      .then((accounts) => {
+        if (accounts?.[0]) setWalletAddress(accounts[0])
+      })
+      .catch(() => {})
+  }, [provider, isConnected])
+
+  useEffect(() => {
+    if (!walletAddress) {
+      setAgent(null)
+      return
+    }
+    setLoading(true)
+    setError(null)
+    getAgent(walletAddress)
+      .then(setAgent)
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : "Failed to load agent")
+        setAgent(null)
+      })
+      .finally(() => setLoading(false))
+  }, [walletAddress])
+
+  const receipts: AutomationReceipt[] = agent?.automationReceipts ?? []
+  const totalSaved = receipts.reduce((s, r) => s + r.amountUSDC, 0)
+  const shown = receipts.slice(0, visible)
+  const hasMore = visible < receipts.length
 
   return (
     <main className="relative min-h-screen bg-background px-4 py-12">
@@ -41,7 +58,6 @@ export default function ReceiptsPage() {
 
       <div className="relative z-10 mx-auto max-w-6xl space-y-8">
 
-        {/* Header */}
         <div className="border-l-2 border-foreground pl-4">
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">NapFi / Receipts</p>
           <h1 className="mt-1 font-pixel text-2xl font-bold text-foreground">
@@ -49,79 +65,94 @@ export default function ReceiptsPage() {
           </h1>
         </div>
 
-        {/* Summary row */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: "Total Deposits", value: `${MOCK_SUMMARY.totalDeposits}` },
-            { label: "Total Saved", value: `$${MOCK_SUMMARY.totalSaved}` },
-            { label: "Trust Score", value: `${MOCK_SUMMARY.trustScore}/100` },
-          ].map((item) => (
-            <div key={item.label} className="border border-border bg-background/95 p-5 space-y-1">
-              <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">{item.label}</p>
-              <p className="font-mono text-2xl font-bold text-foreground">{item.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Table */}
-        {MOCK_RECEIPTS.length === 0 ? (
-          <div className="border border-border bg-background/95 p-10 text-center">
+        {!isConnected || !walletAddress ? (
+          <div className="border border-border bg-background/95 p-10 text-center space-y-3">
             <p className="font-mono text-sm text-muted-foreground">
-              No executions yet. Your first deposit will run on your next scheduled date.
+              Connect your wallet to see automation receipts from the API.
             </p>
+            <Link href="/dashboard" className="font-mono text-sm text-foreground underline">
+              Go to dashboard
+            </Link>
           </div>
+        ) : loading ? (
+          <p className="font-mono text-sm text-muted-foreground">Loading…</p>
+        ) : error ? (
+          <p className="font-mono text-sm text-red-500">{error}</p>
         ) : (
-          <div className="border border-border bg-background/95">
-            {/* Table header */}
-            <div className="grid grid-cols-6 border-b border-border px-5 py-3">
-              {["Date", "Action", "Amount", "Status", "Sepolia TX", "Log"].map((h) => (
-                <p key={h} className="font-mono text-xs uppercase tracking-widest text-muted-foreground">{h}</p>
-              ))}
-            </div>
-
-            {/* Rows */}
-            <div className="divide-y divide-border">
-              {shown.map((r, i) => (
-                <div key={i} className="grid grid-cols-6 items-center px-5 py-4">
-                  <p className="font-mono text-sm text-muted-foreground">{r.date}</p>
-                  <p className="font-mono text-sm text-foreground">{r.action}</p>
-                  <p className="font-mono text-sm text-foreground">{r.amount}</p>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle size={13} className="text-green-500 shrink-0" />
-                    <span className="font-mono text-sm text-foreground">{r.status}</span>
-                  </div>
-                  <a
-                    href={`https://sepolia.etherscan.io/tx/${r.tx}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 font-mono text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {r.tx} <ExternalLink size={10} />
-                  </a>
-                  <a
-                    href={r.ipfs}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 font-mono text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    View Log <ExternalLink size={10} />
-                  </a>
+          <>
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { label: "Automation runs", value: String(agent?.totalExecutions ?? receipts.length) },
+                { label: "USDC (automation)", value: `$${totalSaved.toFixed(2)}` },
+                { label: "Agent ID", value: agent ? String(agent.agentId) : "—" },
+              ].map((item) => (
+                <div key={item.label} className="border border-border bg-background/95 p-5 space-y-1">
+                  <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">{item.label}</p>
+                  <p className="font-mono text-2xl font-bold text-foreground">{item.value}</p>
                 </div>
               ))}
             </div>
 
-            {/* Load more */}
-            {hasMore && (
-              <div className="border-t border-border px-5 py-4">
-                <button
-                  onClick={() => setVisible((v) => v + PAGE_SIZE)}
-                  className="flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Load more <ChevronDown size={14} />
-                </button>
+            {receipts.length === 0 ? (
+              <div className="border border-border bg-background/95 p-10 text-center">
+                <p className="font-mono text-sm text-muted-foreground">
+                  No executions yet. When Flow fires <code className="text-foreground">DepositTriggered</code>, the
+                  server records the Sepolia vault tx here.
+                </p>
+              </div>
+            ) : (
+              <div className="border border-border bg-background/95">
+                <div className="grid grid-cols-5 border-b border-border px-5 py-3 gap-2">
+                  {["Date", "Action", "Amount", "Flow time", "Sepolia TX"].map((h) => (
+                    <p key={h} className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+                      {h}
+                    </p>
+                  ))}
+                </div>
+
+                <div className="divide-y divide-border">
+                  {shown.map((r, i) => {
+                    const shortTx = `${r.sepoliaTxHash.slice(0, 10)}…${r.sepoliaTxHash.slice(-6)}`
+                    return (
+                      <div key={`${r.sepoliaTxHash}-${i}`} className="grid grid-cols-5 items-center gap-2 px-5 py-4">
+                        <p className="font-mono text-sm text-muted-foreground">
+                          {format(parseISO(r.at), "MMM d, yyyy HH:mm")}
+                        </p>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CheckCircle size={13} className="text-green-500 shrink-0" />
+                          <span className="font-mono text-sm text-foreground truncate">Encrypted deposit</span>
+                        </div>
+                        <p className="font-mono text-sm text-foreground">{r.amountUSDC} USDC</p>
+                        <p className="font-mono text-[11px] text-muted-foreground truncate" title={r.flowTimestamp}>
+                          {r.flowTimestamp || "—"}
+                        </p>
+                        <a
+                          href={`https://sepolia.etherscan.io/tx/${r.sepoliaTxHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 font-mono text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {shortTx} <ExternalLink size={10} />
+                        </a>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {hasMore && (
+                  <div className="border-t border-border px-5 py-4">
+                    <button
+                      type="button"
+                      onClick={() => setVisible((v) => v + PAGE_SIZE)}
+                      className="flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Load more <ChevronDown size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
-          </div>
+          </>
         )}
 
       </div>

@@ -44,7 +44,7 @@ transaction(delaySeconds: UFix64, executionEffort: UInt64) {
         let est = FlowTransactionScheduler.calculateFee(
             executionEffort: executionEffort,
             priority:        priority,
-            dataSizeMB:      0
+            dataSizeMB:      0.0
         )
 
         let vaultRef = signer.storage
@@ -52,7 +52,9 @@ transaction(delaySeconds: UFix64, executionEffort: UInt64) {
                 from: /storage/flowTokenVault
             ) ?? panic("Missing FlowToken vault — fund your Flow account at testnet-faucet.onflow.org")
 
-        let fees <- vaultRef.withdraw(amount: est ?? 0.001) as! @FlowToken.Vault
+        // calculateFee returns UFix64 (non-optional); use a small minimum if zero
+        let feeAmount: UFix64 = est > 0.0 ? est : 0.001
+        let fees <- vaultRef.withdraw(amount: feeAmount) as! @FlowToken.Vault
 
         // ── 3. Retrieve the entitled handler capability ─────────────────────────
         var handlerCap:

@@ -3,16 +3,24 @@
  * Encrypts a USDC amount using Zama fhEVM relayer SDK and calls
  * EncryptedVault.deposit() on Sepolia.
  *
- * Env vars required (same as onchainSetup):
- *   SEPOLIA_RPC_URL
- *   BACKEND_PRIVATE_KEY  — the agent operator wallet
- *   VAULT_CONTRACT_ADDRESS (optional; falls back to contracts.json)
+ * Requires real Zama encryption (same as browser): use SepoliaConfig + EIP-1193 RPC.
+ * Mock ciphertexts are rejected by FHE.fromExternal on-chain.
+ *
+ * Env: SEPOLIA_RPC_URL, BACKEND_PRIVATE_KEY, optional VAULT_CONTRACT_ADDRESS
  */
 
-import { Contract, getAddress, JsonRpcProvider, Wallet } from "ethers"
+import {
+  Contract,
+  getAddress,
+  hexlify,
+  JsonRpcProvider,
+  Wallet,
+  type Eip1193Provider,
+} from "ethers"
 import { readFileSync } from "fs"
 import { dirname, join } from "path"
 import { fileURLToPath } from "url"
+import { createInstance, SepoliaConfig } from "@zama-fhe/relayer-sdk/node"
 import { loadContractsConfig } from "./contracts.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -21,11 +29,25 @@ function loadVaultAbi() {
   const raw = readFileSync(
     join(
       __dirname,
-      "../../../../onchain/artifacts/contracts/EncryptedVault.sol/EncryptedVault.json"
+      "../../../onchain/artifacts/contracts/EncryptedVault.sol/EncryptedVault.json"
     ),
     "utf8"
   )
   return JSON.parse(raw).abi
+}
+
+/** ethers JsonRpcProvider → EIP-1193 for @zama-fhe/relayer-sdk createInstance */
+function jsonRpcToEip1193(provider: JsonRpcProvider): Eip1193Provider {
+  return {
+    request: async (args: {
+      method: string
+      params?: readonly unknown[] | undefined
+    }) => {
+      const params =
+        args.params === undefined ? [] : [...args.params]
+      return provider.send(args.method, params)
+    },
+  } as Eip1193Provider
 }
 
 export type DepositResult = {
@@ -37,74 +59,47 @@ export async function executeEncryptedDeposit(params: {
   amountUSDC: number
 }): Promise<DepositResult> {
   const rpc = process.env.SEPOLIA_RPC_URL?.trim()
-  const pk  = process.env.BACKEND_PRIVATE_KEY?.trim()
+  const pk = process.env.BACKEND_PRIVATE_KEY?.trim()
 
   if (!rpc) throw new Error("SEPOLIA_RPC_URL is not set")
-  if (!pk)  throw new Error("BACKEND_PRIVATE_KEY is not set")
+  if (!pk) throw new Error("BACKEND_PRIVATE_KEY is not set")
 
-  const cfg        = loadContractsConfig()
-  const vaultAddr  = process.env.VAULT_CONTRACT_ADDRESS?.trim() || cfg.encryptedVault
-  const provider   = new JsonRpcProvider(rpc, cfg.chainId)
-  const operator   = new Wallet(pk, provider)
-  const vaultAbi   = loadVaultAbi()
-  const vault      = new Contract(vaultAddr, vaultAbi, operator)
-  const userAddr   = getAddress(params.userEVMAddress)
+  const cfg = loadContractsConfig()
+  const vaultAddr = getAddress(
+    process.env.VAULT_CONTRACT_ADDRESS?.trim() || cfg.encryptedVault
+  )
+  const provider = new JsonRpcProvider(rpc, cfg.chainId)
+  const operator = new Wallet(pk, provider)
+  const vaultAbi = loadVaultAbi()
+  const vault = new Contract(vaultAddr, vaultAbi, operator)
+  const userAddr = getAddress(params.userEVMAddress)
+  const operatorAddr = getAddress(operator.address)
 
-  // ── Encrypt the deposit amount using Zama fhEVM relayer SDK ──────────────
-  // Amount stored in USDC with 6 decimals — convert UFix64 USDC to uint64 micro-USDC
   const microUsdc = BigInt(Math.round(params.amountUSDC * 1_000_000))
 
-  let encryptedHandle: string
-  let inputProof: string
+  const instance = await createInstance({
+    ...SepoliaConfig,
+    network: jsonRpcToEip1193(provider),
+  })
 
-  try {
-    // Dynamic import — SDK may not be installed in all environments
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sdk = (await import(/* @vite-ignore */ "@zama-fhe/relayer-sdk" as string)) as any
-    const { createInstance } = sdk as {
-      createInstance: (opts: { network: string }) => Promise<{
-        createEncryptedInput: (
-          contractAddr: string,
-          userAddr: string
-        ) => {
-          add64: (n: bigint) => void
-          encrypt: () => Promise<{ handles: string[]; inputProof: string }>
-        }
-      }>
-    }
+  // fhEVM verifyInput passes msg.sender (deposit caller) as EIP712 userAddress — must match
+  // this second arg. The vault still credits `user` from deposit(..., user).
+  const input = instance.createEncryptedInput(vaultAddr, operatorAddr)
+  input.add64(microUsdc)
+  const encrypted = await input.encrypt()
+  const encryptedHandle = encrypted.handles[0]
+  const inputProof = encrypted.inputProof
 
-    const instance = await createInstance({ network: "sepolia" })
-    const input    = instance.createEncryptedInput(vaultAddr, userAddr)
-    input.add64(microUsdc)
-    const encrypted = await input.encrypt()
-    encryptedHandle = encrypted.handles[0]
-    inputProof      = encrypted.inputProof
+  console.log(
+    `[Zama] Encrypted ${params.amountUSDC} USDC → handle ${hexlify(encryptedHandle).slice(0, 18)}…`
+  )
 
-    console.log(
-      `[Zama] Encrypted ${params.amountUSDC} USDC → handle ${encryptedHandle.slice(0, 18)}...`
-    )
-  } catch {
-    // ── Dev / mock fallback ─────────────────────────────────────────────────
-    // When @zama-fhe/relayer-sdk is not available or fhEVM infra is unreachable,
-    // use a deterministic placeholder so the rest of the pipeline still runs.
-    console.warn(
-      "[Zama] relayer-sdk not available — using mock encryption (dev/demo only)"
-    )
-    encryptedHandle =
-      "0x" +
-      Buffer.from(
-        `mock:${params.amountUSDC}:${userAddr}:${Date.now()}`.padEnd(32, "0").slice(0, 32)
-      ).toString("hex")
-    inputProof = "0x" + "00".repeat(64)
-  }
-
-  // ── Call EncryptedVault.deposit() ─────────────────────────────────────────
-  const tx      = await vault.deposit(encryptedHandle, inputProof, userAddr)
+  const tx = await vault.deposit(encryptedHandle, inputProof, userAddr)
   const receipt = await tx.wait()
   if (!receipt) throw new Error("EncryptedVault.deposit() receipt missing")
 
   console.log(
-    `[Sepolia] EncryptedVault.deposit confirmed | tx: ${receipt.hash} | user: ${userAddr}`
+    `[NapFi][Sepolia] EncryptedVault.deposit confirmed | tx: ${receipt.hash} | user: ${userAddr}`
   )
 
   return { sepoliaTxHash: receipt.hash as string }

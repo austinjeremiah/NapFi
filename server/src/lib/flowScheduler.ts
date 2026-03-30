@@ -22,6 +22,7 @@ import { SHA3 } from "sha3"
 import { readFileSync } from "fs"
 import { dirname, join } from "path"
 import { fileURLToPath } from "url"
+import { configureFlowFcl } from "./flowFclConfig.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -47,6 +48,20 @@ function getFlowEnv() {
 
 export function hasFlowEnv(): boolean {
   return Boolean(getFlowEnv())
+}
+
+/** Delay (seconds) until the next Flow-scheduled run — matches scheduleFlowDeposit / FLOW_SCHEDULE_DELAY_SECONDS. */
+export function getFlowScheduleDelaySeconds(frequency: string): number {
+  const overrideDelay = process.env.FLOW_SCHEDULE_DELAY_SECONDS?.trim()
+  const delaySecs = overrideDelay
+    ? Number(overrideDelay)
+    : (FREQUENCY_DELAY[frequency] ?? FREQUENCY_DELAY.weekly)
+  if (!Number.isFinite(delaySecs) || delaySecs <= 0) {
+    throw new Error(
+      "FLOW_SCHEDULE_DELAY_SECONDS must be a positive number when set"
+    )
+  }
+  return delaySecs
 }
 
 /**
@@ -92,10 +107,11 @@ function makeAuthz(accountAddr: string, privateKeyHex: string, keyIndex: number)
 }
 
 /**
- * Read a Cadence transaction file from the cadence/transactions/ folder.
+ * Read a Cadence transaction file from repo `cadence/transactions/`.
+ * __dirname = server/src/lib → three levels up = repo root (not four — four resolves outside NapFi).
  */
 function loadCadenceTx(filename: string): string {
-  const txPath = join(__dirname, "../../../../cadence/transactions", filename)
+  const txPath = join(__dirname, "../../../cadence/transactions", filename)
   return readFileSync(txPath, "utf8")
 }
 
@@ -103,7 +119,9 @@ export async function scheduleFlowDeposit(params: {
   userEVMAddress: string
   depositAmountUSDC: number
   frequency: string
-}): Promise<{ initTxId: string; scheduleTxId: string }> {
+  /** scheduleDeposit only: fixed delay in seconds (e.g. 60 for dashboard demo). */
+  scheduleDelaySecondsOverride?: number
+}): Promise<{ initTxId: string; scheduleTxId: string; delaySeconds: number }> {
   const env = getFlowEnv()
   if (!env) {
     throw new Error(
@@ -114,13 +132,23 @@ export async function scheduleFlowDeposit(params: {
 
   const { accessNode, accountAddr, privateKeyHex, keyIndex } = env
 
-  fcl.config({
-    "accessNode.api": accessNode,
-    "flow.network":   "testnet",
-  })
+  configureFlowFcl(accessNode)
 
-  const authz      = makeAuthz(accountAddr, privateKeyHex, keyIndex)
-  const delaySecs  = FREQUENCY_DELAY[params.frequency] ?? FREQUENCY_DELAY.weekly
+  const authz = makeAuthz(accountAddr, privateKeyHex, keyIndex)
+  let delaySecs: number
+  if (params.scheduleDelaySecondsOverride != null) {
+    delaySecs = params.scheduleDelaySecondsOverride
+    console.log(
+      `[Flow] scheduleDeposit delay override: ${delaySecs}s (demo / custom)`
+    )
+  } else {
+    delaySecs = getFlowScheduleDelaySeconds(params.frequency)
+    if (process.env.FLOW_SCHEDULE_DELAY_SECONDS?.trim()) {
+      console.log(
+        `[Flow] Using FLOW_SCHEDULE_DELAY_SECONDS=${delaySecs} (test / dev override)`
+      )
+    }
+  }
   const execEffort = 1000
 
   // ── Step 1: initHandler ────────────────────────────────────────────────────
@@ -176,5 +204,71 @@ export async function scheduleFlowDeposit(params: {
     `[Flow] Done — deposit for ${params.userEVMAddress} scheduled every ${params.frequency}`
   )
 
-  return { initTxId, scheduleTxId }
+  return { initTxId, scheduleTxId, delaySeconds: delaySecs }
+}
+
+/**
+ * Schedule the next Flow execution after `delaySecs` (initHandler must already exist).
+ * Used for recurring runs and for demo (e.g. 60s).
+ */
+export async function scheduleNextFlowDepositWithDelay(
+  delaySecs: number
+): Promise<{ scheduleTxId: string; delaySeconds: number }> {
+  if (!Number.isFinite(delaySecs) || delaySecs <= 0) {
+    throw new Error("delaySecs must be a positive number")
+  }
+
+  const env = getFlowEnv()
+  if (!env) {
+    throw new Error(
+      "Flow env not configured. Set FLOW_ACCESS_NODE, FLOW_ACCOUNT_ADDRESS, " +
+        "FLOW_PRIVATE_KEY, AGENT_SCHEDULER_ADDRESS in server/.env"
+    )
+  }
+
+  const { accessNode, accountAddr, privateKeyHex, keyIndex } = env
+
+  configureFlowFcl(accessNode)
+
+  const authz = makeAuthz(accountAddr, privateKeyHex, keyIndex)
+  const execEffort = 1000
+  const scheduleCode = loadCadenceTx("scheduleDeposit.cdc")
+
+  console.log(`[Flow] scheduleDeposit — delay: ${delaySecs}s`)
+
+  const scheduleTxId = await fcl.mutate({
+    cadence: scheduleCode,
+    args: (arg: typeof fcl.arg, t: typeof fcl.t) => [
+      arg(delaySecs.toFixed(8), t.UFix64),
+      arg(String(execEffort), t.UInt64),
+    ],
+    proposer:       authz,
+    payer:          authz,
+    authorizations: [authz],
+    limit:          999,
+  })
+
+  await fcl.tx(scheduleTxId).onceSealed()
+  console.log(`[Flow] Next run scheduled, tx: ${scheduleTxId}`)
+
+  return { scheduleTxId, delaySeconds: delaySecs }
+}
+
+/**
+ * After a DepositTriggered run completes on Sepolia, schedule the next execution on Flow
+ * (initHandler is not repeated).
+ */
+export async function scheduleNextFlowDeposit(
+  frequency: string
+): Promise<{ scheduleTxId: string; delaySeconds: number }> {
+  const delaySecs = getFlowScheduleDelaySeconds(frequency)
+  if (process.env.FLOW_SCHEDULE_DELAY_SECONDS?.trim()) {
+    console.log(
+      `[Flow] Using FLOW_SCHEDULE_DELAY_SECONDS=${delaySecs} (test / dev override)`
+    )
+  }
+  console.log(
+    `[Flow] Re-scheduling next deposit — delay: ${delaySecs}s (${frequency})...`
+  )
+  return scheduleNextFlowDepositWithDelay(delaySecs)
 }

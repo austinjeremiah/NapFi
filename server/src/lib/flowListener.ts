@@ -9,8 +9,10 @@
  */
 
 import * as fcl from "@onflow/fcl"
+import { configureFlowFcl } from "./flowFclConfig.js"
 import { executeEncryptedDeposit } from "./sepoliaExecutor.js"
 import { postReputationReceipt } from "./reputationPoster.js"
+import { notifyFlowDepositCompleted } from "./flowExecutionBridge.js"
 
 export type DepositTriggeredEvent = {
   userEVMAddress: string
@@ -34,10 +36,7 @@ export function startFlowListener(): void {
   if (listenerStarted) return
   listenerStarted = true
 
-  fcl.config({
-    "accessNode.api": accessNode,
-    "flow.network": "testnet",
-  })
+  configureFlowFcl(accessNode)
 
   // Event type: A.<ADDRESS>.AgentScheduler.DepositTriggered
   const eventType = `A.${schedulerAddr.replace("0x", "")}.AgentScheduler.DepositTriggered`
@@ -50,7 +49,10 @@ export function startFlowListener(): void {
     const amountUSDC = parseFloat(amount)
 
     console.log(
-      `\n[Flow] DepositTriggered — user: ${userEVMAddress} | amount: ${amountUSDC} USDC | ts: ${timestamp}`
+      `\n[NapFi][Flow] DepositTriggered — user: ${userEVMAddress} | amount: ${amountUSDC} USDC | ts: ${timestamp}`
+    )
+    console.log(
+      "[NapFi] Pipeline: Flow event received → Sepolia EncryptedVault.deposit (Zama encrypt) → reputation…"
     )
 
     try {
@@ -60,7 +62,7 @@ export function startFlowListener(): void {
         amountUSDC,
       })
 
-      console.log(`[Flow→Sepolia] Deposit confirmed: ${sepoliaTxHash}`)
+      console.log(`[NapFi][Flow→Sepolia] EncryptedVault deposit confirmed | tx: ${sepoliaTxHash}`)
 
       // 2. Post ERC-8004 receipt to ReputationRegistry
       await postReputationReceipt({
@@ -70,7 +72,14 @@ export function startFlowListener(): void {
         flowTimestamp: timestamp,
       })
 
-      console.log(`[Flow→Sepolia] Reputation receipt posted for agent.`)
+      console.log(`[NapFi][Flow→Sepolia] Reputation receipt posted for agent.`)
+
+      await notifyFlowDepositCompleted({
+        userEVMAddress,
+        amountUSDC,
+        sepoliaTxHash,
+        flowTimestamp: timestamp,
+      })
     } catch (err) {
       console.error("[Flow] Error processing DepositTriggered event:", err)
     }

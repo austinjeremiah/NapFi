@@ -44,6 +44,22 @@ export type SetupRequest = {
   yieldEnabled: boolean
 }
 
+export type FlowScheduleInfo = {
+  initTxId?: string
+  scheduleTxId?: string
+  delaySeconds: number
+  scheduledAtISO: string
+  lastRescheduleAtISO?: string
+  flowNetwork?: "testnet"
+}
+
+export type AutomationReceipt = {
+  at: string
+  amountUSDC: number
+  sepoliaTxHash: string
+  flowTimestamp: string
+}
+
 export type SetupResponse = {
   agentId: number
   vaultAddress: string
@@ -54,6 +70,7 @@ export type SetupResponse = {
     setAgentWallet: string
     registerUserAgent: string
   }
+  flowSchedule?: FlowScheduleInfo
   updated?: boolean
   note?: string
 }
@@ -75,6 +92,8 @@ export type AgentResponse = {
   }
   chainOnly?: boolean
   note?: string
+  flowSchedule?: FlowScheduleInfo
+  automationReceipts?: AutomationReceipt[]
 }
 
 export async function postSetup(body: SetupRequest): Promise<SetupResponse> {
@@ -94,6 +113,22 @@ export async function postSetup(body: SetupRequest): Promise<SetupResponse> {
   return data
 }
 
+export async function getReceipts(agentId: number): Promise<AutomationReceipt[]> {
+  const base = getApiBaseUrl()
+  if (!base) {
+    throw new Error("NEXT_PUBLIC_API_BASE_URL is not set")
+  }
+  const res = await apiFetch(`${base}/api/receipts/${agentId}`)
+  const data = (await res.json().catch(() => ({}))) as {
+    receipts?: AutomationReceipt[]
+    error?: string
+  }
+  if (!res.ok) {
+    throw new Error(data.error || `getReceipts failed (${res.status})`)
+  }
+  return data.receipts ?? []
+}
+
 export async function getAgent(userAddress: string): Promise<AgentResponse | null> {
   const base = getApiBaseUrl()
   if (!base) {
@@ -104,6 +139,68 @@ export async function getAgent(userAddress: string): Promise<AgentResponse | nul
   const data = (await res.json().catch(() => ({}))) as AgentResponse & { error?: string }
   if (!res.ok) {
     throw new Error(data.error || `getAgent failed (${res.status})`)
+  }
+  return data
+}
+
+/** Thrown by demo helpers when the API returns a non-2xx status (check `.status`). */
+export class ApiHttpError extends Error {
+  readonly status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = "ApiHttpError"
+    this.status = status
+  }
+}
+
+export type DemoScheduleResponse = {
+  nextExecutionISO: string
+  scheduleTxId: string
+  initTxId?: string
+  delaySeconds: number
+  flowSchedule?: FlowScheduleInfo
+}
+
+export async function postDemoScheduleOneMinute(
+  userAddress: string
+): Promise<DemoScheduleResponse> {
+  const base = getApiBaseUrl()
+  if (!base) throw new Error("NEXT_PUBLIC_API_BASE_URL is not set")
+  const res = await apiFetch(`${base}/api/demo/schedule-one-minute`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userAddress }),
+  })
+  const data = (await res.json().catch(() => ({}))) as DemoScheduleResponse & {
+    error?: string
+  }
+  if (!res.ok) {
+    throw new ApiHttpError(data.error || `Demo schedule failed (${res.status})`, res.status)
+  }
+  return data
+}
+
+export type DemoExecuteResponse = {
+  sepoliaTxHash: string
+  totalExecutions: number
+  nextExecutionISO: string
+}
+
+export async function postDemoExecuteDeposit(
+  userAddress: string
+): Promise<DemoExecuteResponse> {
+  const base = getApiBaseUrl()
+  if (!base) throw new Error("NEXT_PUBLIC_API_BASE_URL is not set")
+  const res = await apiFetch(`${base}/api/demo/execute-deposit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userAddress }),
+  })
+  const data = (await res.json().catch(() => ({}))) as DemoExecuteResponse & {
+    error?: string
+  }
+  if (!res.ok) {
+    throw new ApiHttpError(data.error || `Demo execute failed (${res.status})`, res.status)
   }
   return data
 }

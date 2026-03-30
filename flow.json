@@ -1,5 +1,15 @@
 {
   "contracts": {
+    "FungibleToken": {
+      "aliases": {
+        "testnet": "0x9a0766d93b6608b7"
+      }
+    },
+    "FlowToken": {
+      "aliases": {
+        "testnet": "0x7e60df042a9c0868"
+      }
+    },
     "FlowTransactionScheduler": {
       "aliases": {
         "testnet": "0x8c5303eaa26202d6"

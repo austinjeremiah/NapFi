@@ -1,14 +1,22 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Lock, CheckCircle, ExternalLink, ChevronRight, Wallet } from "lucide-react"
 import Link from "next/link"
 import { useWeb3Auth } from "@web3auth/modal/react"
-import { formatDistanceToNow, parseISO } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { DotPattern } from "@/components/ui/dot-pattern"
 import { ScrambleText } from "@/components/ui/scramble-text"
-import { getAgent, type AgentResponse, type ApiFrequency } from "@/lib/api"
+import {
+  getAgent,
+  ApiHttpError,
+  postDemoScheduleOneMinute,
+  postDemoExecuteDeposit,
+  type AgentResponse,
+  type ApiFrequency,
+  type AutomationReceipt,
+} from "@/lib/api"
 import { sepoliaClient } from "@/lib/sepolia-client"
 import { ENCRYPTED_VAULT_ABI, CONTRACT_ADDRESSES, VAULT_ADDRESS } from "@/lib/contract-defs"
 import {
@@ -25,17 +33,34 @@ function freqLabel(f: ApiFrequency): string {
   return "month"
 }
 
+function freqChallengeLabel(f: ApiFrequency): string {
+  if (f === "daily") return "Daily"
+  if (f === "weekly") return "Weekly"
+  return "Monthly"
+}
+
 function shortAddr(a: string) {
   return `${a.slice(0, 6)}…${a.slice(-4)}`
 }
 
-const MOCK_RECEIPTS = [
-  { date: "Mar 27, 2026", action: "Deposit 10 USDC", ipfs: "https://ipfs.io/ipfs/placeholder1" },
-  { date: "Mar 20, 2026", action: "Deposit 10 USDC", ipfs: "https://ipfs.io/ipfs/placeholder2" },
-  { date: "Mar 13, 2026", action: "Deposit 10 USDC", ipfs: "https://ipfs.io/ipfs/placeholder3" },
-  { date: "Mar 06, 2026", action: "Deposit 10 USDC", ipfs: "https://ipfs.io/ipfs/placeholder4" },
-  { date: "Feb 27, 2026", action: "Deposit 10 USDC", ipfs: "https://ipfs.io/ipfs/placeholder5" },
-]
+function flowscanTxUrl(txId: string) {
+  return `https://flowscan.org/testnet/transaction/${txId}`
+}
+
+/** Live countdown until target (updates every second from parent). */
+function formatCountdownTo(target: Date, now: Date): string {
+  const ms = target.getTime() - now.getTime()
+  if (ms <= 0) return "Due now"
+  const totalSec = Math.floor(ms / 1000)
+  const days = Math.floor(totalSec / 86_400)
+  const h = Math.floor((totalSec % 86_400) / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  if (days > 0) return `${days}d ${h}h ${m}m ${s}s`
+  if (h > 0) return `${h}h ${m}m ${s}s`
+  if (m > 0) return `${m}m ${s}s`
+  return `${s}s`
+}
 
 type CachedSetup = {
   agentId: number
@@ -76,6 +101,45 @@ export default function DashboardPage() {
   const [balance, setBalance] = useState<number | null>(null)
   const [fheExpanded, setFheExpanded] = useState(false)
 
+  const [demoScheduleBusy, setDemoScheduleBusy] = useState(false)
+  const [demoScheduleError, setDemoScheduleError] = useState<string | null>(null)
+  const [demoSimulatedNote, setDemoSimulatedNote] = useState<string | null>(null)
+  const [demoFallbackUntil, setDemoFallbackUntil] = useState<number | null>(null)
+  /** After successful Demo 1m (Flow path): force UI to exactly 60s from click. */
+  const [demoOneMinuteUntil, setDemoOneMinuteUntil] = useState<number | null>(null)
+
+  const [nowMs, setNowMs] = useState(() => Date.now())
+
+  useEffect(() => {
+    const hasTarget =
+      Boolean(agent?.nextExecutionISO) ||
+      demoFallbackUntil != null ||
+      demoOneMinuteUntil != null
+    if (!hasTarget) return
+    setNowMs(Date.now())
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [agent?.nextExecutionISO, demoFallbackUntil, demoOneMinuteUntil])
+
+  const mergeCachedAgent = useCallback(
+    (row: AgentResponse | null): AgentResponse | null => {
+      if (!row || !walletAddress) return row
+      const cached = loadCachedSetup(walletAddress)
+      return {
+        ...row,
+        ipfsUri: row.ipfsUri ?? cached?.ipfsUri,
+        txHashes: row.txHashes ?? cached?.txHashes,
+      }
+    },
+    [walletAddress]
+  )
+
+  const refreshAgent = useCallback(async () => {
+    if (!walletAddress) return
+    const row = await getAgent(walletAddress)
+    setAgent(mergeCachedAgent(row))
+  }, [walletAddress, mergeCachedAgent])
+
   useEffect(() => {
     if (!provider || !isConnected) {
       setWalletAddress("")
@@ -99,14 +163,7 @@ export default function DashboardPage() {
     setAgentError(null)
     getAgent(walletAddress)
       .then((row) => {
-        const cached = loadCachedSetup(walletAddress)
-        const merged: AgentResponse | null = row
-          ? {
-              ...row,
-              ipfsUri: row.ipfsUri ?? cached?.ipfsUri,
-              txHashes: row.txHashes ?? cached?.txHashes,
-            }
-          : null
+        const merged = mergeCachedAgent(row)
 
         if (merged?.txHashes) {
           console.log("\n✅ NapFi Agent Transactions")
@@ -134,7 +191,7 @@ export default function DashboardPage() {
         setAgent(null)
       })
       .finally(() => setAgentLoading(false))
-  }, [walletAddress])
+  }, [walletAddress, mergeCachedAgent])
 
   const refreshUsdcBalances = useCallback(() => {
     if (!walletAddress) {
@@ -157,6 +214,24 @@ export default function DashboardPage() {
   useEffect(() => {
     refreshUsdcBalances()
   }, [refreshUsdcBalances])
+
+  useEffect(() => {
+    if (demoFallbackUntil == null || !walletAddress) return
+    const ms = Math.max(0, demoFallbackUntil - Date.now())
+    const t = window.setTimeout(() => {
+      setDemoFallbackUntil(null)
+      setDemoSimulatedNote(null)
+      void postDemoExecuteDeposit(walletAddress)
+        .then(() => {
+          void refreshAgent()
+          refreshUsdcBalances()
+        })
+        .catch((e) => {
+          setDemoScheduleError(e instanceof Error ? e.message : String(e))
+        })
+    }, ms)
+    return () => window.clearTimeout(t)
+  }, [demoFallbackUntil, walletAddress, refreshAgent, refreshUsdcBalances])
 
   const revealBalance = async () => {
     if (!provider || !walletAddress) return
@@ -195,9 +270,74 @@ export default function DashboardPage() {
     }
   }
 
-  const nextDepositLabel = agent?.nextExecutionISO
-    ? formatDistanceToNow(parseISO(agent.nextExecutionISO), { addSuffix: true })
-    : "—"
+  const nextDepositTargetMs = useMemo(() => {
+    if (demoOneMinuteUntil != null) return demoOneMinuteUntil
+    if (demoFallbackUntil != null) return demoFallbackUntil
+    if (!agent?.nextExecutionISO) return null
+    return parseISO(agent.nextExecutionISO).getTime()
+  }, [agent?.nextExecutionISO, demoFallbackUntil, demoOneMinuteUntil])
+
+  const isDemoCountdown =
+    demoOneMinuteUntil != null || demoFallbackUntil != null
+
+  const nextDepositCountdown = useMemo(() => {
+    if (nextDepositTargetMs == null) return "—"
+    const target = new Date(nextDepositTargetMs)
+    const now = new Date(nowMs)
+    if (target.getTime() <= now.getTime()) {
+      if (isDemoCountdown) return "Due now"
+      return "Overdue · waiting for Flow"
+    }
+    return formatCountdownTo(target, now)
+  }, [nextDepositTargetMs, nowMs, isDemoCountdown])
+
+  const nextDepositAbsolute = useMemo(() => {
+    if (nextDepositTargetMs == null) return null
+    return format(new Date(nextDepositTargetMs), "MMM d, yyyy · HH:mm")
+  }, [nextDepositTargetMs])
+
+  /** When Flow demo timer hits 0, refresh agent + balances (listener deposits on Sepolia). */
+  useEffect(() => {
+    if (demoOneMinuteUntil == null) return
+    if (nowMs < demoOneMinuteUntil) return
+    setDemoOneMinuteUntil(null)
+    setDemoSimulatedNote(null)
+    void refreshAgent()
+    refreshUsdcBalances()
+  }, [nowMs, demoOneMinuteUntil, refreshAgent, refreshUsdcBalances])
+
+  const handleDemoOneMinute = async () => {
+    if (!walletAddress) return
+    setDemoScheduleBusy(true)
+    setDemoScheduleError(null)
+    setDemoSimulatedNote(null)
+    setDemoFallbackUntil(null)
+    setDemoOneMinuteUntil(null)
+    try {
+      await postDemoScheduleOneMinute(walletAddress)
+      setDemoOneMinuteUntil(Date.now() + 60_000)
+      setDemoSimulatedNote(
+        "Demo: 1:00 until Flow fires → then Sepolia encrypted deposit (same as production)."
+      )
+      await refreshAgent()
+    } catch (e) {
+      if (e instanceof ApiHttpError) {
+        if (e.status === 503) {
+          setDemoFallbackUntil(Date.now() + 60_000)
+          setDemoSimulatedNote(
+            "Flow not configured — at 0:00 the API runs the Sepolia encrypted deposit (demo)."
+          )
+        } else {
+          // 403/422/500 and real 404 (wrong URL) — show API message
+          setDemoScheduleError(e.message)
+        }
+      } else {
+        setDemoScheduleError(e instanceof Error ? e.message : String(e))
+      }
+    } finally {
+      setDemoScheduleBusy(false)
+    }
+  }
 
   const target = 500
   const totalSavedNum = agent?.goalAmountUSDC ? agent.goalAmountUSDC * 3 : 0
@@ -511,8 +651,42 @@ export default function DashboardPage() {
 
               <div className="grid grid-cols-2 gap-3 border-t border-border pt-4">
                 <div className="space-y-1">
-                  <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Next deposit</p>
-                  <p className="font-mono text-base text-foreground">{nextDepositLabel}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+                      Next deposit
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void handleDemoOneMinute()}
+                      disabled={demoScheduleBusy || agentLoading}
+                      className="shrink-0 font-mono text-[9px] uppercase tracking-wider border border-border px-2 py-1 rounded hover:bg-muted/40 disabled:opacity-40 transition-colors"
+                      title="Schedules Flow in 60s, then Sepolia deposit. Non-production API enables demo by default."
+                    >
+                      {demoScheduleBusy ? "…" : "Demo 1m"}
+                    </button>
+                  </div>
+                  <p className="font-mono text-[10px] text-muted-foreground">
+                    {freqChallengeLabel(agent.frequency)} · next run
+                    {isDemoCountdown ? " (demo 1:00)" : ""}
+                  </p>
+                  <p className="font-mono text-base text-foreground tabular-nums tracking-tight">
+                    {nextDepositCountdown}
+                  </p>
+                  {nextDepositAbsolute && (
+                    <p className="font-mono text-[10px] text-muted-foreground">{nextDepositAbsolute}</p>
+                  )}
+                  {demoSimulatedNote && (
+                    <p className="font-mono text-[10px] text-muted-foreground leading-snug">{demoSimulatedNote}</p>
+                  )}
+                  {demoScheduleError && (
+                    <p className="font-mono text-[10px] text-red-500 leading-snug">{demoScheduleError}</p>
+                  )}
+                  {agent.flowSchedule && !demoSimulatedNote && (
+                    <p className="font-mono text-[10px] text-muted-foreground">
+                      Flow interval: {agent.flowSchedule.delaySeconds}s
+                      {agent.flowSchedule.flowNetwork === "testnet" ? " (testnet)" : ""}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Reputation</p>
@@ -566,6 +740,55 @@ export default function DashboardPage() {
                   )}
                 </div>
               )}
+
+              {agent.flowSchedule &&
+                (agent.flowSchedule.initTxId || agent.flowSchedule.scheduleTxId) && (
+                  <div className="border-t border-border pt-4 space-y-2">
+                    <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground mb-3">
+                      Flow (automation)
+                    </p>
+                    {agent.flowSchedule.initTxId && (
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                            initHandler
+                          </p>
+                          <p className="font-mono text-[11px] text-foreground truncate">
+                            {agent.flowSchedule.initTxId}
+                          </p>
+                        </div>
+                        <a
+                          href={flowscanTxUrl(agent.flowSchedule.initTxId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          Flowscan <ExternalLink size={9} />
+                        </a>
+                      </div>
+                    )}
+                    {agent.flowSchedule.scheduleTxId && (
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                            scheduleDeposit
+                          </p>
+                          <p className="font-mono text-[11px] text-foreground truncate">
+                            {agent.flowSchedule.scheduleTxId}
+                          </p>
+                        </div>
+                        <a
+                          href={flowscanTxUrl(agent.flowSchedule.scheduleTxId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          Flowscan <ExternalLink size={9} />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
             </>
           ) : (
             <p className="font-mono text-sm text-muted-foreground">
@@ -683,25 +906,37 @@ export default function DashboardPage() {
           </div>
 
           <div className="divide-y divide-border">
-            {MOCK_RECEIPTS.map((r, i) => (
-              <div key={i} className="flex items-center justify-between py-3">
-                <div className="flex items-center gap-3">
+            {(agent?.automationReceipts?.length
+              ? agent.automationReceipts
+              : []
+            ).map((r: AutomationReceipt, i: number) => (
+              <div key={`${r.sepoliaTxHash}-${i}`} className="flex items-center justify-between py-3 gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <CheckCircle size={13} className="text-green-500 shrink-0" />
-                  <div>
-                    <p className="font-mono text-base text-foreground">{r.action}</p>
-                    <p className="font-mono text-xs text-muted-foreground">{r.date}</p>
+                  <div className="min-w-0">
+                    <p className="font-mono text-base text-foreground">
+                      Automated deposit {r.amountUSDC} USDC
+                    </p>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {format(parseISO(r.at), "MMM d, yyyy · HH:mm")}
+                    </p>
                   </div>
                 </div>
                 <a
-                  href={r.ipfs}
+                  href={`https://sepolia.etherscan.io/tx/${r.sepoliaTxHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="shrink-0 flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  View proof <ExternalLink size={10} />
+                  Sepolia <ExternalLink size={10} />
                 </a>
               </div>
             ))}
+            {(!agent?.automationReceipts || agent.automationReceipts.length === 0) && (
+              <p className="py-6 font-mono text-sm text-muted-foreground text-center">
+                No automation runs recorded yet. After Flow triggers a deposit, the Sepolia tx appears here.
+              </p>
+            )}
           </div>
         </div>
 
