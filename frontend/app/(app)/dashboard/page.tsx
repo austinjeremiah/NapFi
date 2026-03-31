@@ -24,7 +24,6 @@ import { VAULT_ADDRESS } from "@/lib/contract-defs"
 import {
   depositUsdcFromWallet,
   fetchDecryptedUsdcBalance,
-  getVaultUsdcBalance,
   getWalletUsdcBalance,
   withdrawUsdcFromVault,
   getVaultLPInfo,
@@ -91,7 +90,6 @@ export default function DashboardPage() {
   const [agentError, setAgentError] = useState<string | null>(null)
 
   const [walletUsdc, setWalletUsdc] = useState<string | null>(null)
-  const [plainVaultUsdc, setPlainVaultUsdc] = useState<string | null>(null)
   const [usdcLoading, setUsdcLoading] = useState(false)
   const [depositAmount, setDepositAmount] = useState("10")
   const [withdrawAmount, setWithdrawAmount] = useState("")
@@ -201,18 +199,12 @@ export default function DashboardPage() {
   const refreshUsdcBalances = useCallback(() => {
     if (!walletAddress) {
       setWalletUsdc(null)
-      setPlainVaultUsdc(null)
       return
     }
     setUsdcLoading(true)
-    Promise.all([
-      getWalletUsdcBalance(walletAddress).catch(() => "—"),
-      getVaultUsdcBalance(walletAddress).catch(() => "—"),
-    ])
-      .then(([w, v]) => {
-        setWalletUsdc(w)
-        setPlainVaultUsdc(v)
-      })
+    getWalletUsdcBalance(walletAddress)
+      .then(setWalletUsdc)
+      .catch(() => setWalletUsdc("—"))
       .finally(() => setUsdcLoading(false))
   }, [walletAddress])
 
@@ -535,25 +527,14 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border pt-4">
-              <div>
-                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
-                  Wallet USDC
-                </p>
-                <p className="font-mono text-2xl font-bold text-foreground">
-                  {usdcLoading ? "…" : walletUsdc ?? "—"}{" "}
-                  <span className="text-sm font-normal text-muted-foreground">USDC</span>
-                </p>
-              </div>
-              <div>
-                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
-                  In NapFi USDC vault
-                </p>
-                <p className="font-mono text-2xl font-bold text-foreground">
-                  {usdcLoading ? "…" : plainVaultUsdc ?? "—"}{" "}
-                  <span className="text-sm font-normal text-muted-foreground">USDC</span>
-                </p>
-              </div>
+            <div className="border-t border-border pt-4">
+              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
+                Wallet USDC
+              </p>
+              <p className="font-mono text-2xl font-bold text-foreground">
+                {usdcLoading ? "…" : walletUsdc ?? "—"}{" "}
+                <span className="text-sm font-normal text-muted-foreground">USDC</span>
+              </p>
             </div>
 
             {/* ── Uniswap v3 LP Yield ────────────────────────── */}
