@@ -18,6 +18,8 @@ This document summarizes **what the stack does**, **HTTP API routes**, **Sepolia
 
 Each of **`cadence/`**, **`frontend/`**, **`onchain/`**, and **`server/`** has its own **`README.md`** with folder-specific detail.
 
+**Localhost video demo script (timing, pauses, tmux):** **`README.mdv`** in the repo root.
+
 ---
 
 ## Sepolia contract addresses

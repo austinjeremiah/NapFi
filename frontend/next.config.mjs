@@ -16,6 +16,16 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@react-native-async-storage/async-storage": path.join(
+        __dirname,
+        "lib/stubs/async-storage.ts"
+      ),
+    }
+    return config
+  },
 }
 
 export default nextConfig
