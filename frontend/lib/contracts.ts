@@ -7,12 +7,20 @@ import {
   parseUnits,
 } from "ethers"
 import type { Eip1193Provider } from "ethers"
-import { SEPOLIA_USDC, USDC_DECIMALS, VAULT_ADDRESS } from "./contract-defs"
+import {
+  CONTRACT_ADDRESSES,
+  ENCRYPTED_VAULT_ABI,
+  NAPFI_UNISWAP_VAULT_ADDRESS,
+  SEPOLIA_USDC,
+  USDC_DECIMALS,
+  VAULT_ADDRESS,
+} from "./contract-defs"
 
 export {
   AGENT_REGISTRY_ABI,
   CONTRACT_ADDRESSES,
   ENCRYPTED_VAULT_ABI,
+  NAPFI_UNISWAP_VAULT_ADDRESS,
   SEPOLIA_USDC,
   USDC_DECIMALS,
   VAULT_ADDRESS,
@@ -88,6 +96,39 @@ const VAULT_ABI = [
 function getSigner(web3authProvider: Eip1193Provider) {
   const browserProvider = new BrowserProvider(web3authProvider)
   return browserProvider.getSigner()
+}
+
+/**
+ * Encrypted balance for `NapFiUniswapVault` only (`NAPFI_UNISWAP_VAULT_ADDRESS` / `VAULT_ADDRESS`):
+ * `hasBalance` → `getBalanceHandle` → `decryptBalance` from `@/lib/zama` (optional `makeBalanceDecryptable`).
+ * Returns USDC as a number (micro-units decoded in `decryptBalance`).
+ */
+export async function fetchDecryptedUsdcBalance(
+  userAddress: string,
+  walletProvider: Eip1193Provider
+): Promise<number> {
+  const user = getAddress(userAddress)
+  const vaultAddr = getAddress(NAPFI_UNISWAP_VAULT_ADDRESS)
+  const read = sepoliaReadProvider()
+  const cRead = new Contract(vaultAddr, ENCRYPTED_VAULT_ABI, read)
+
+  if (!((await cRead.hasBalance(user)) as boolean)) return 0
+
+  const handle = (await cRead.getBalanceHandle(user)) as `0x${string}`
+
+  const { decryptBalance } = await import("./zama")
+  const tryDecrypt = () => decryptBalance(handle, vaultAddr, user, walletProvider)
+
+  try {
+    return await tryDecrypt()
+  } catch {
+    const browserProvider = new BrowserProvider(walletProvider)
+    const signer = await browserProvider.getSigner()
+    const cWrite = new Contract(vaultAddr, ENCRYPTED_VAULT_ABI, signer)
+    const tx = await cWrite.makeBalanceDecryptable(user)
+    await tx.wait()
+    return await tryDecrypt()
+  }
 }
 
 export async function getWalletUsdcBalance(userAddress: string): Promise<string> {

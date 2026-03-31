@@ -29,8 +29,13 @@ export const AGENT_REGISTRY_ABI = [
 
 /** Circle test USDC on Sepolia — used by NapFiUniswapVault. */
 export const SEPOLIA_USDC = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
-/** NapFiUniswapVault: USDC/WETH LP on Uniswap v3 with Zama fhEVM encrypted balances. */
-export const VAULT_ADDRESS =
+/**
+ * `NapFiUniswapVault.sol` on Sepolia — USDC/WETH Uniswap v3 LP + Zama fhEVM `encryptedBalances`.
+ * hardhat-deploy: `onchain/deployments/sepolia/NapFiUniswapVault.json`
+ */
+export const NAPFI_UNISWAP_VAULT_ADDRESS =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_USDC_VAULT_ADDRESS?.trim()) ||
   "0x00708ec2B50d785d6717Ef8192bF89b62aB28348"
+/** Same as `NAPFI_UNISWAP_VAULT_ADDRESS` — used for USDC deposit/withdraw UI. */
+export const VAULT_ADDRESS = NAPFI_UNISWAP_VAULT_ADDRESS
 export const USDC_DECIMALS = 6

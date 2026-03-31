@@ -19,10 +19,11 @@ import {
   type ApiFrequency,
   type AutomationReceipt,
 } from "@/lib/api"
-import { sepoliaClient } from "@/lib/sepolia-client"
-import { ENCRYPTED_VAULT_ABI, CONTRACT_ADDRESSES, VAULT_ADDRESS } from "@/lib/contract-defs"
+import type { Eip1193Provider } from "ethers"
+import { VAULT_ADDRESS } from "@/lib/contract-defs"
 import {
   depositUsdcFromWallet,
+  fetchDecryptedUsdcBalance,
   getVaultUsdcBalance,
   getWalletUsdcBalance,
   withdrawUsdcFromVault,
@@ -265,32 +266,12 @@ export default function DashboardPage() {
     setBalanceLoading(true)
     setBalanceError("")
     try {
-      const has = await sepoliaClient.readContract({
-        address: CONTRACT_ADDRESSES.EncryptedVault,
-        abi: ENCRYPTED_VAULT_ABI,
-        functionName: "hasBalance",
-        args: [walletAddress as `0x${string}`],
-      }) as boolean
-
-      if (!has) {
-        setBalance(0)
-        setBalanceRevealed(true)
-        return
-      }
-
-      const handle = await sepoliaClient.readContract({
-        address: CONTRACT_ADDRESSES.EncryptedVault,
-        abi: ENCRYPTED_VAULT_ABI,
-        functionName: "getBalanceHandle",
-        args: [walletAddress as `0x${string}`],
-      }) as `0x${string}`
-
-      const { decryptBalance } = await import("@/lib/zama")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cleartext = await decryptBalance(handle, provider as any)
+      // `fetchDecryptedUsdcBalance`: hasBalance → getBalanceHandle on VAULT_ADDRESS then EncryptedVault; decryptBalance + optional makeBalanceDecryptable
+      const cleartext = await fetchDecryptedUsdcBalance(walletAddress, provider as Eip1193Provider)
       setBalance(cleartext)
       setBalanceRevealed(true)
-    } catch {
+    } catch (e) {
+      console.error("[revealBalance]", e)
       setBalanceError("Could not decrypt balance. Try again.")
     } finally {
       setBalanceLoading(false)
