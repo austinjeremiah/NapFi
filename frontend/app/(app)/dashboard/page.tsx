@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Lock, CheckCircle, ExternalLink, ChevronRight, Wallet } from "lucide-react"
 import Link from "next/link"
@@ -13,6 +13,8 @@ import {
   ApiHttpError,
   postDemoScheduleOneMinute,
   postDemoExecuteDeposit,
+  getFlowDepositPending,
+  postFlowDepositComplete,
   type AgentResponse,
   type ApiFrequency,
   type AutomationReceipt,
@@ -286,9 +288,15 @@ export default function DashboardPage() {
     const now = new Date(nowMs)
     if (target.getTime() <= now.getTime()) {
       if (isDemoCountdown) return "Due now"
-      return "Overdue · waiting for Flow"
+      return "Overdue · waiting for Flow on-chain"
     }
     return formatCountdownTo(target, now)
+  }, [nextDepositTargetMs, nowMs, isDemoCountdown])
+
+  const showFlowOverdueHint = useMemo(() => {
+    if (nextDepositTargetMs == null) return false
+    if (isDemoCountdown) return false
+    return nowMs >= nextDepositTargetMs
   }, [nextDepositTargetMs, nowMs, isDemoCountdown])
 
   const nextDepositAbsolute = useMemo(() => {
@@ -386,6 +394,58 @@ export default function DashboardPage() {
       setWithdrawBusy(false)
     }
   }
+
+  // ── Flow auto-deposit: poll for queued deposits, call depositUsdcFromWallet (same as Deposit button) ──
+
+  const flowDepositBusyRef = useRef(false)
+  const completedFlowIdsRef = useRef(new Set<string>())
+
+  const tryConsumeQueuedFlowDeposit = useCallback(async () => {
+    if (!walletAddress || !provider) return
+    if (flowDepositBusyRef.current) return
+    flowDepositBusyRef.current = true
+    try {
+      const { pending } = await getFlowDepositPending(walletAddress)
+      if (!pending) return
+      if (completedFlowIdsRef.current.has(pending.id)) return
+
+      const scheduledUsdc = pending.amountUSDC
+      console.log(
+        `[Flow Auto] Depositing ${scheduledUsdc} USDC from embedded wallet (same as manual Deposit button)…`
+      )
+
+      const { txHash } = await depositUsdcFromWallet(
+        provider as never,
+        scheduledUsdc
+      )
+
+      console.log(`[Flow Auto] USDC deposit confirmed: ${txHash}`)
+
+      await postFlowDepositComplete({
+        id: pending.id,
+        userAddress: walletAddress,
+        sepoliaTxHash: txHash,
+      })
+
+      completedFlowIdsRef.current.add(pending.id)
+      console.log(`[Flow Auto] Flow deposit complete id=${pending.id}`)
+      refreshUsdcBalances()
+      void refreshAgent()
+    } catch (e) {
+      console.error("[Flow Auto] Error:", e)
+    } finally {
+      flowDepositBusyRef.current = false
+    }
+  }, [walletAddress, provider, refreshUsdcBalances, refreshAgent])
+
+  useEffect(() => {
+    if (!walletAddress || !provider) return
+    void tryConsumeQueuedFlowDeposit()
+    const id = window.setInterval(() => {
+      void tryConsumeQueuedFlowDeposit()
+    }, 2500)
+    return () => window.clearInterval(id)
+  }, [walletAddress, provider, tryConsumeQueuedFlowDeposit])
 
   const copyAddress = () => {
     if (!walletAddress) return
@@ -674,6 +734,16 @@ export default function DashboardPage() {
                   </p>
                   {nextDepositAbsolute && (
                     <p className="font-mono text-[10px] text-muted-foreground">{nextDepositAbsolute}</p>
+                  )}
+                  {showFlowOverdueHint && (
+                    <p className="font-mono text-[10px] text-muted-foreground leading-snug">
+                      When <code className="text-foreground/90">nextExecutionISO</code> is in the past, the API
+                      (default <code className="text-foreground/90">NAPFI_DEPOSIT_QUEUE_SOURCE=time</code>)
+                      enqueues the USDC deposit; this page polls and calls{" "}
+                      <code className="text-foreground/90">depositUsdcFromWallet</code> (same as Deposit).
+                      Keep this tab open. Server log:{" "}
+                      <code className="text-foreground/90">[NapFi][ScheduleTime] Queued USDC deposit</code>.
+                    </p>
                   )}
                   {demoSimulatedNote && (
                     <p className="font-mono text-[10px] text-muted-foreground leading-snug">{demoSimulatedNote}</p>

@@ -204,3 +204,59 @@ export async function postDemoExecuteDeposit(
   }
   return data
 }
+
+// ── Flow pending deposit queue (dashboard auto-deposits USDC from embedded wallet) ──
+
+export type FlowDepositPending = {
+  id: string
+  amountUSDC: number
+  flowTimestamp: string
+  vaultAddress: string
+}
+
+export async function getFlowDepositPending(
+  userAddress: string
+): Promise<{ pending: FlowDepositPending | null }> {
+  const base = getApiBaseUrl()
+  if (!base) throw new Error("NEXT_PUBLIC_API_BASE_URL is not set")
+  const res = await apiFetch(
+    `${base}/api/flow-deposit-pending/${encodeURIComponent(userAddress)}`
+  )
+  const data = (await res.json().catch(() => ({}))) as {
+    pending?: FlowDepositPending | null
+    error?: string
+  }
+  if (!res.ok) {
+    throw new Error(data.error || `getFlowDepositPending failed (${res.status})`)
+  }
+  return { pending: data.pending ?? null }
+}
+
+export async function postFlowDepositComplete(body: {
+  id: string
+  userAddress: string
+  sepoliaTxHash: string
+}): Promise<{ ok: boolean; sepoliaTxHash: string }> {
+  const base = getApiBaseUrl()
+  if (!base) throw new Error("NEXT_PUBLIC_API_BASE_URL is not set")
+  const res = await apiFetch(`${base}/api/flow-deposit-complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  const data = (await res.json().catch(() => ({}))) as {
+    ok?: boolean
+    sepoliaTxHash?: string
+    error?: string
+  }
+  if (!res.ok) {
+    throw new ApiHttpError(
+      data.error || `flow-deposit-complete failed (${res.status})`,
+      res.status
+    )
+  }
+  return {
+    ok: Boolean(data.ok),
+    sepoliaTxHash: data.sepoliaTxHash ?? body.sepoliaTxHash,
+  }
+}

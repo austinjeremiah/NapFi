@@ -14,9 +14,18 @@ import {
   hasFlowEnv,
   getFlowScheduleDelaySeconds,
 } from "./lib/flowScheduler.js"
-import { setFlowDepositCompletedHandler } from "./lib/flowExecutionBridge.js"
+import {
+  setFlowDepositCompletedHandler,
+  notifyFlowDepositCompleted,
+} from "./lib/flowExecutionBridge.js"
 import { executeEncryptedDeposit } from "./lib/sepoliaExecutor.js"
 import { postReputationReceipt } from "./lib/reputationPoster.js"
+import {
+  peekFlowPendingDeposit,
+  consumeFlowPendingDeposit,
+} from "./lib/flowPendingDeposits.js"
+import { getDepositQueueSource } from "./lib/depositQueueSource.js"
+import { runScheduleTimeDepositEnqueuePass } from "./lib/scheduleTimeDepositQueue.js"
 import { getAddress } from "ethers"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -154,8 +163,16 @@ function nextExecutionISO(f: Frequency): string {
 
 setFlowDepositCompletedHandler(async (p) => {
   const key = normalizeAddress(p.userEVMAddress)
-  const u = users.get(key)
-  if (!u) return
+  let u = users.get(key)
+  if (!u) {
+    u = (await hydrateUserFromChainIfNeeded(p.userEVMAddress)) ?? undefined
+  }
+  if (!u) {
+    console.warn(
+      `[Flow] deposit complete: no in-memory user for ${key} (hydrate failed) — receipt / next run not updated`
+    )
+    return
+  }
 
   const prev = u.automationReceipts ?? []
   u.automationReceipts = [
@@ -228,6 +245,32 @@ const CORS_ORIGINS = (process.env.CORS_ORIGIN ||
   .map((o) => o.trim())
   .filter(Boolean)
 
+const SCHEDULE_TIME_POLL_MS = Math.max(
+  2000,
+  Number.parseInt(process.env.NAPFI_SCHEDULE_TIME_POLL_MS ?? "5000", 10) || 5000
+)
+
+if (getDepositQueueSource() === "time") {
+  const tickScheduleDeposits = (): void => {
+    try {
+      runScheduleTimeDepositEnqueuePass(users.values())
+    } catch (e) {
+      console.error("[NapFi][ScheduleTime] tick error:", e)
+    }
+  }
+  setInterval(tickScheduleDeposits, SCHEDULE_TIME_POLL_MS)
+  queueMicrotask(tickScheduleDeposits)
+  console.log(
+    `[NapFi] Deposit queue source=time — USDC deposit is queued when nextExecutionISO passes (every ${SCHEDULE_TIME_POLL_MS}ms). Flow scheduling txs still run; DepositTriggered is optional.`
+  )
+} else {
+  console.log(
+    "[NapFi] Deposit queue source=chain — USDC deposit is queued only when Flow emits DepositTriggered"
+  )
+}
+
+const CRON_SECRET = process.env.NAPFI_CRON_SECRET?.trim()
+
 const app = express()
 app.use(cors({ origin: CORS_ORIGINS, credentials: true }))
 app.use(express.json())
@@ -244,13 +287,21 @@ app.get("/", (_req, res) => {
       receipts: "GET /api/receipts/:agentId",
       demoScheduleOneMinute: "POST /api/demo/schedule-one-minute",
       demoExecuteDeposit: "POST /api/demo/execute-deposit",
+      cronEnqueueScheduleDeposits:
+        "POST /api/cron/enqueue-schedule-deposits (Bearer NAPFI_CRON_SECRET)",
     },
     onchain: hasOnchainEnv(),
+    depositQueueSource: getDepositQueueSource(),
   })
 })
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, service: "napfi-api", onchainReady: hasOnchainEnv() })
+  res.json({
+    ok: true,
+    service: "napfi-api",
+    onchainReady: hasOnchainEnv(),
+    depositQueueSource: getDepositQueueSource(),
+  })
 })
 
 /**
@@ -552,7 +603,7 @@ app.post("/api/demo/schedule-one-minute", async (req, res) => {
         `[NapFi] Flow testnet — initHandler: ${flow.initTxId} | scheduleDeposit: ${flow.scheduleTxId} (sealed)`
       )
       console.log(
-        `[NapFi] In ~${flow.delaySeconds}s: Flow emits DepositTriggered → this server → Sepolia EncryptedVault.deposit (see [Flow→Sepolia] / [Sepolia])`
+        `[NapFi] In ~${flow.delaySeconds}s: nextExecutionISO passes → server (${getDepositQueueSource()} queue) enqueues USDC → dashboard calls depositUsdcFromWallet. Keep the app open.`
       )
       res.json({
         nextExecutionISO: nextISO,
@@ -582,7 +633,7 @@ app.post("/api/demo/schedule-one-minute", async (req, res) => {
         `[NapFi] Flow testnet — scheduleDeposit: ${scheduleTxId} (${delaySeconds}s to DepositTriggered)`
       )
       console.log(
-        "[NapFi] Then: listener → Sepolia EncryptedVault.deposit — watch for [Flow→Sepolia] and [Sepolia]"
+        "[NapFi] Then: listener queues deposit — dashboard signs USDC (same as Deposit button). Watch for [NapFi][Flow] DepositTriggered and [Flow Auto] in browser console."
       )
       res.json({
         nextExecutionISO: nextISO,
@@ -677,6 +728,102 @@ app.post("/api/demo/execute-deposit", async (req, res) => {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Execute failed"
     console.error("[POST /api/demo/execute-deposit]", e)
+    res.status(500).json({ error: msg })
+  }
+})
+
+/**
+ * Optional: run the same enqueue pass as the schedule-time watcher (for Task Scheduler / CI).
+ * Requires NAPFI_CRON_SECRET and deposit queue source=time.
+ */
+app.post("/api/cron/enqueue-schedule-deposits", (req, res) => {
+  if (!CRON_SECRET) {
+    res.status(503).json({
+      error: "NAPFI_CRON_SECRET is not set — cron endpoint disabled",
+    })
+    return
+  }
+  const auth = String(req.headers.authorization ?? "")
+  if (auth !== `Bearer ${CRON_SECRET}`) {
+    res.status(401).json({ error: "Unauthorized" })
+    return
+  }
+  if (getDepositQueueSource() !== "time") {
+    res.status(400).json({
+      error:
+        "depositQueueSource is not 'time' — set NAPFI_DEPOSIT_QUEUE_SOURCE=time or use the in-process interval only",
+    })
+    return
+  }
+  const enqueued = runScheduleTimeDepositEnqueuePass(users.values())
+  res.json({ ok: true, enqueued })
+})
+
+// ── Flow pending deposit queue (dashboard polls + embedded wallet signs USDC) ──
+
+app.get("/api/flow-deposit-pending/:userAddress", (req, res) => {
+  const raw = String(req.params.userAddress ?? "").trim()
+  let parsed: string
+  try {
+    parsed = getAddress(raw)
+  } catch {
+    res.status(400).json({ error: "Invalid userAddress" })
+    return
+  }
+  const pending = peekFlowPendingDeposit(parsed)
+  if (!pending) {
+    res.json({ pending: null })
+    return
+  }
+  const vault = process.env.VAULT_CONTRACT_ADDRESS?.trim() || VAULT_DEFAULT
+  res.json({
+    pending: {
+      id: pending.id,
+      amountUSDC: pending.amountUSDC,
+      flowTimestamp: pending.flowTimestamp,
+      vaultAddress: vault,
+    },
+  })
+})
+
+app.post("/api/flow-deposit-complete", async (req, res) => {
+  const id = String(req.body?.id ?? "").trim()
+  const userRaw = String(req.body?.userAddress ?? "").trim()
+  const sepoliaTxHash = String(req.body?.sepoliaTxHash ?? "").trim()
+  let userAddress: string
+  try {
+    userAddress = getAddress(userRaw)
+  } catch {
+    res.status(400).json({ error: "Invalid userAddress" })
+    return
+  }
+  if (!id || !/^0x[a-f0-9]{64}$/i.test(sepoliaTxHash)) {
+    res.status(400).json({ error: "Invalid id or sepoliaTxHash" })
+    return
+  }
+  const head = peekFlowPendingDeposit(userAddress)
+  if (!head || head.id !== id) {
+    res.status(404).json({
+      error: "No matching pending deposit — wrong id or already completed",
+    })
+    return
+  }
+  const consumed = consumeFlowPendingDeposit(userAddress, id)
+  if (!consumed) {
+    res.status(409).json({ error: "Could not finalize pending deposit" })
+    return
+  }
+  try {
+    await notifyFlowDepositCompleted({
+      userEVMAddress: consumed.userEVMAddress,
+      amountUSDC: consumed.amountUSDC,
+      sepoliaTxHash,
+      flowTimestamp: consumed.flowTimestamp,
+    })
+    res.json({ ok: true, sepoliaTxHash })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Post-deposit steps failed"
+    console.error("[POST /api/flow-deposit-complete]", e)
     res.status(500).json({ error: msg })
   }
 })
