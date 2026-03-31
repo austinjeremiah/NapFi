@@ -1,194 +1,302 @@
 # NapFi
 
-NapFi is a **confidential DeFi savings demo** on **Ethereum Sepolia**: users onboard an **ERC-8004 agent**, schedule automation via **Flow (Cadence) testnet**, and move **USDC** into a **Zama fhEVM** vault that can pair with **Uniswap v3** liquidity. A small **Express API** coordinates IPFS registration, on-chain setup, optional Flow scheduling, a **pending-deposit queue** (wallet-signed USDC), and **reputation receipts** on the ERC-8004 reputation registry.
-
-This document summarizes **what the stack does**, **HTTP API routes**, **Sepolia contract addresses**, **ERC-8004 agent registration**, and **Uniswap v3 + vault mechanics**.
+NapFi is a **confidential DeFi savings agent** on **Ethereum Sepolia**. Users sign in with Google or email (no wallet or seed phrase required), set a savings goal, and an on-chain ERC-8004 agent automatically deposits USDC into a **Zama fhEVM** encrypted vault — with optional **Uniswap v3 liquidity provision**. Scheduling is handled via **Flow (Cadence) testnet** or a time-based server scheduler. Every automated execution posts a verifiable reputation receipt on-chain.
 
 ---
 
-## Repository layout
+## The Problem We Solve
 
-| Area | Role |
-|------|------|
-| `frontend/` | Next.js app (dashboard, Web3Auth, USDC deposit/withdraw, FHE balance decrypt) |
-| `server/` | Express JSON API (`napfi-api`), Flow listener, Sepolia executor, IPFS pinning |
-| `onchain/` | Hardhat: `EncryptedVault`, `NapFiUniswapVault`, `AgentRegistry`, Uniswap constants |
-| `cadence/` | Flow testnet: `AgentScheduler`, `initHandler`, `scheduleDeposit`, scripts |
-| `contracts.json` | Shared Sepolia addresses for ERC-8004 registries and default vault |
-
-Each of **`cadence/`**, **`frontend/`**, **`onchain/`**, and **`server/`** has its own **`README.md`** with folder-specific detail.
-
-**Localhost video demo script (timing, pauses, tmux):** **`README.mdv`** in the repo root.
+| Problem | Solution |
+|---------|----------|
+| All DeFi balances are public — anyone can see your deposits and copy your strategy | Zama fhEVM: all balances stored as FHE-encrypted `euint64` on-chain; only the user can decrypt |
+| No way to verify an AI agent actually executed what it promised | ERC-8004: agent minted as ERC-721 NFT with on-chain identity; every deposit posts a reputation receipt to `ReputationRegistry` |
+| DeFi automation requires wallets, gas knowledge, and manual signing | Web3Auth: social login creates a wallet via MPC — user never sees a seed phrase; Flow Scheduler fires deposits automatically |
 
 ---
 
-## Sepolia contract addresses
+## System Architecture
 
-Values below match the repo’s `contracts.json` and `frontend/lib/contract-defs.ts` unless you override with env vars.
+```
+USER (Google / email login)
+        |
+        v
+   WEB3AUTH (MPC wallet — no seed phrase)
+        |
+   +----|------------------------------------+
+   |                                         |
+   v                                         v
+FLOW TESTNET (Chain ID: 545)         ETHEREUM SEPOLIA (Chain ID: 11155111)
+AgentScheduler.cdc                   EncryptedVault.sol  (Zama fhEVM)
+FlowTransactionScheduler             NapFiUniswapVault.sol (Uniswap v3 + FHE)
+Scheduled execution trigger          AgentRegistry.sol
+Emits DepositTriggered event         ERC-8004 IdentityRegistry
+        |                            ERC-8004 ReputationRegistry
+        v
+   EXPRESS SERVER (Node.js, port 3001)
+   - Listens for DepositTriggered events (or time-based scheduler)
+   - Encrypts USDC amount via @zama-fhe/relayer-sdk
+   - Calls EncryptedVault.deposit() / NapFiUniswapVault.depositUSDC()
+   - Pins execution log to IPFS
+   - Posts reputation receipt to ERC-8004 ReputationRegistry
+        |
+        v
+   NEXT.JS FRONTEND (port 3000)
+   - Dashboard: balance, goal, deposit/withdraw, countdown
+   - Receipts: history of automated executions + Etherscan links
+   - Settings: update goal, frequency, yield toggle
+   - FHE decryption: user decrypts only their own balance via Zama SDK
+```
 
-### ERC-8004 (agent identity & reputation)
+---
+
+## Repository Layout
+
+```
+NapFi/
+├── frontend/        Next.js app — dashboard, onboarding, receipts, settings
+├── server/          Express API — agent lifecycle, Flow listener, Sepolia executor
+├── onchain/         Hardhat — EncryptedVault, NapFiUniswapVault, AgentRegistry
+├── cadence/         Flow testnet — AgentScheduler contract, scheduling transactions
+└── contracts.json   Shared Sepolia + Flow testnet addresses
+```
+
+---
+
+## Contract Addresses
+
+### Ethereum Sepolia (Chain ID: 11155111)
+
+#### ERC-8004 Agent Identity & Reputation
+
+| Contract | Address |
+|----------|---------|
+| ERC-8004 Identity Registry | `0x8004A818BFB912233c491871b3d84c89A494BD9e` |
+| ERC-8004 Reputation Registry | `0x8004B663056A597Dffe9eCcC1965A193B7388713` |
+| NapFi AgentRegistry | `0x7ca0388C3A895278D2f1F0161919Ab7D189f062F` |
+
+#### Zama fhEVM Vaults
 
 | Contract | Address | Notes |
-|----------|---------|--------|
-| **ERC-8004 Identity Registry** | `0x8004A818BFB912233c491871b3d84c89A494BD9e` | Mints agent NFT; `register(agentURI)` |
-| **ERC-8004 Reputation Registry** | `0x8004B663056A597Dffe9eCcC1965A193B7388713` | `giveFeedback` after successful deposits (see [Reputation](#reputation-after-deposit)) |
-| **NapFi AgentRegistry** | `0x7ca0388C3A895278D2f1F0161919Ab7D189f062F` | Maps user EOA → `agentId` + vault via `lookup` / `registerUserAgent` |
+|----------|---------|-------|
+| EncryptedVault | `0x939F26Cd46B4A039C512EBE949F8C10D6545227e` | Pure FHE encrypted USDC balance vault |
+| NapFiUniswapVault | `0x00708ec2B50d785d6717Ef8192bF89b62aB28348` | Uniswap v3 LP + FHE encrypted balances |
+| NapFiUsdcVault (alt) | `0x1BED91De1ae0D03ba088E34FbA2412102CA5Ab8a` | Alternate deployment |
 
-### Zama fhEVM vaults
+#### Tokens
 
-| Contract | Address | Notes |
-|----------|---------|--------|
-| **EncryptedVault** (reference / default in `contracts.json`) | `0x939F26Cd46B4A039C512EBE949F8C10D6545227e` | Classic encrypted USDC balance vault (backend executor ABI targets this artifact unless overridden) |
-| **NapFiUniswapVault** (USDC + Uniswap v3 LP UI) | `0x00708ec2B50d785d6717Ef8192bF89b62aB28348` | Default `VAULT_ADDRESS` / `NAPFI_UNISWAP_VAULT_ADDRESS` in `contract-defs.ts`; override with `NEXT_PUBLIC_USDC_VAULT_ADDRESS` |
+| Token | Address |
+|-------|---------|
+| USDC (Circle testnet) | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` |
+| WETH9 | `0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14` |
 
-### Other deployments
+#### Uniswap v3 (Sepolia)
 
-| Artifact | Address | Notes |
-|----------|---------|--------|
-| **NapFiUsdcVault** (alternate deployment) | `0x1BED91De1ae0D03ba088E34FbA2412102CA5Ab8a` | See `onchain/deployments/sepolia/NapFiUsdcVault.json` |
-| **Sepolia USDC (Circle test token)** | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` | Used by the Uniswap vault and dashboard |
+| Contract | Address |
+|----------|---------|
+| Factory | `0x0227628f3F023bb0B980b67D528571c95c6DaC1c` |
+| NonfungiblePositionManager | `0x1238536071E1c677A632429e3655c799b22cDA52` |
+| SwapRouter02 | `0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E` |
+| QuoterV2 | `0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3` |
+| Permit2 | `0x000000000022D473030F116dDEE9F6B43aC78BA3` |
 
-**Chain ID:** `11155111` (Ethereum Sepolia).
+### Flow Testnet
 
----
-
-## ERC-8004 agent: what is implemented
-
-[EIP-8004](https://eips.ethereum.org/EIPS/eip-8004) describes **trustless agents** with on-chain identity and optional reputation. NapFi’s **first-time setup** (`POST /api/setup` when the user is not already registered) does the following (see `server/src/lib/onchainSetup.ts`):
-
-1. **Build registration JSON** — includes `type: "https://eips.ethereum.org/EIPS/eip-8004#registration-v1"`, app metadata, NapFi-specific fields (`goalAmountUSDC`, `frequency`, `yieldEnabled`, etc.).
-2. **Pin to IPFS** — Lighthouse or Pinata (`server/src/lib/ipfsPin.ts`).
-3. **`IdentityRegistry.register(ipfsUri)`** — backend wallet sends the tx; an **`agentId`** (NFT token id) is read from the `Registered` event.
-4. **`setAgentWallet`** — operator signs **EIP-712** (`AgentWalletSet`); backend submits `setAgentWallet(agentId, operator, deadline, signature)` so the **operator** matches `EncryptedVault.agentOperator` for automated deposits.
-5. **`AgentRegistry.registerUserAgent(user, agentId, vault)`** — links the **user’s EOA** to that **`agentId`** and **vault address**.
-
-The **frontend** reads the user’s agent via **`AgentRegistry.lookup`** (see `frontend/lib/contract-defs.ts` ABIs) and displays **ERC-8004 ID**, vault link, and automation state.
-
-### Reputation after deposit
-
-After a successful vault deposit, the server can post a **reputation receipt** (`server/src/lib/reputationPoster.ts`):
-
-- Build a small execution log JSON (user, amount, Sepolia tx hash, Flow timestamp).
-- Pin to IPFS.
-- **`ReputationRegistry.giveFeedback(agentId, …)`** with tags, `endpoint` set to the vault address, and IPFS URI.
-
-**Env:** requires `SEPOLIA_RPC_URL`, `BACKEND_PRIVATE_KEY`, and **`AGENT_ID`** (see `server/.env.example`). In multi-user demos, note that a single global `AGENT_ID` does not map 1:1 to every user’s minted agent unless you extend the server to pass per-user `agentId` from the in-memory record.
+| Contract | Address |
+|----------|---------|
+| FlowTransactionScheduler | `0x8c5303eaa26202d6` |
+| AgentScheduler (NapFi) | `0xc4d59c93cd6c2c43` |
+| FungibleToken | `0x9a0766d93b6608b7` |
+| FlowToken | `0x7e60df042a9c0868` |
 
 ---
 
-## Uniswap v3: technical overview (NapFiUniswapVault)
+## Smart Contracts
 
-`onchain/contracts/uniswap/NapFiUniswapVault.sol` implements a **confidential LP vault** on fhEVM:
+### EncryptedVault.sol
+Confidential USDC savings vault on Zama fhEVM.
 
-### Protocol integration
+- Stores balances as encrypted `euint64` using Fully Homomorphic Encryption
+- `deposit(externalEuint64, proof, user)` — adds to encrypted balance with `FHE.add()`
+- `withdraw(externalEuint64, proof)` — encrypted comparison `FHE.le()` prevents overdrafts without revealing balance; subtracts with `FHE.select()`
+- `makeBalanceDecryptable()` — grants user ACL permission to decrypt their own balance
+- Agent operator can verify but not read raw balances
 
-- **Tokens:** USDC (`SEPOLIA_USDC_CIRCLE`) and **WETH9** on Sepolia.
-- **NonfungiblePositionManager (NPM):** mints the ERC-721 **position NFT**, `increaseLiquidity` / `decreaseLiquidity` / `collect` — the vault holds the position and aggregates user capital.
-- **SwapRouter (`exactInputSingle`):** converts part of user USDC to WETH before adding liquidity, so deposits can be **single-sided USDC** from the user’s perspective.
-- **Constants** are centralized in `UniswapV3SepoliaConstants.sol` (factory, NPM, SwapRouter02, QuoterV2, Universal Router, Permit2, WETH) — aligned with [Uniswap’s Sepolia deployment table](https://docs.uniswap.org/contracts/v3/reference/deployments/ethereum-deployments).
+### NapFiUniswapVault.sol
+Confidential Uniswap v3 LP vault — single-sided USDC deposit with FHE balance tracking.
 
-### Two layers of accounting
+- User deposits USDC; vault swaps half to WETH via `SwapRouter.exactInputSingle()`, then adds both to the Uniswap v3 USDC/WETH 0.3% pool via `NonfungiblePositionManager`
+- **Two-layer accounting:**
+  - Plaintext: `totalShares` and `sharesOf` for Uniswap LP math (required by periphery)
+  - Encrypted: `mapping(address => euint64) encryptedBalances` — mirrors EncryptedVault pattern
+- User earns LP fees; position is aggregated in the vault
+- `initializePosition(usdcAmount, wethAmount)` — owner seeds initial liquidity
 
-1. **Plaintext** — `totalShares` and `sharesOf` for Uniswap LP math (amounts in/out of the pool must be computed in clear text on-chain for the periphery contracts).
-2. **Encrypted (FHE)** — `mapping(address => euint64) encryptedBalances` mirrors `EncryptedVault.sol`: user **share balances** are **euint64** handles; `FHE.add` / `FHE.sub` on deposit/withdraw; `makeBalanceDecryptable` / user decrypt in the UI.
+### AgentRegistry.sol
+On-chain lookup table: user EOA → ERC-8004 agent ID + vault address.
 
-So: **Uniswap v3** provides **AMM liquidity and fee economics**; **Zama fhEVM** provides **private balance handles** for user positions in that vault.
-
-### Fee tiers
-
-The constants library documents standard v3 fees: `100` (0.01%), `500`, `3000` (0.3%), `10000` (1%). The vault uses the pool/NPM configuration chosen at deployment (USDC/WETH **0.3%** is typical for test demos).
+- `registerUserAgent(user, agentId, vault)` — called by server after ERC-8004 minting
+- `lookup(user)` → returns `(agentId, vaultAddress, isRegistered, registeredAt)`
+- `batchLookup(users[])` — multi-user fetch
 
 ---
 
-## HTTP API (`server/src/index.ts`)
+## ERC-8004 Agent Registration
 
-Base URL is usually `http://localhost:3001`. The frontend expects **`NEXT_PUBLIC_API_BASE_URL`** (see `frontend/lib/api.ts`). CORS is controlled by **`CORS_ORIGIN`** in `server/.env`.
+On first setup, the server (`server/src/lib/onchainSetup.ts`) automatically:
 
-### Discovery & health
+1. Builds a registration JSON per the EIP-8004 spec (includes goal, frequency, yieldEnabled)
+2. Pins it to IPFS via Lighthouse or Pinata
+3. Calls `IdentityRegistry.register(ipfsUri)` → mints agent NFT, reads `agentId` from `Registered` event
+4. Signs EIP-712 `AgentWalletSet` message, calls `setAgentWallet(agentId, operator, deadline, sig)`
+5. Calls `AgentRegistry.registerUserAgent(user, agentId, vault)`
+
+After every successful vault deposit, a reputation receipt is posted (`server/src/lib/reputationPoster.ts`):
+- Builds execution log JSON (user, amount, tx hash, timestamp)
+- Pins to IPFS
+- Calls `ReputationRegistry.giveFeedback(agentId, tags, vaultAddress, ipfsUri)`
+
+---
+
+## Flow (Cadence) Automation
+
+**cadence/contracts/AgentScheduler.cdc** — Implements `FlowTransactionScheduler.TransactionHandler`. When fired by the scheduler, emits a `DepositTriggered` event with the user's Sepolia address and deposit amount.
+
+**cadence/transactions/initHandler.cdc** — Saves the `AgentScheduler.Handler` resource to a user's Flow account storage once, enabling the scheduler to call it.
+
+**cadence/transactions/scheduleDeposit.cdc** — Creates a scheduled job on `FlowTransactionScheduler` at the user's chosen interval (daily = 86400s, weekly = 604800s, monthly = 2592000s). Withdraws the scheduling fee from the user's FLOW balance.
+
+**cadence/scripts/getScheduledJobs.cdc** — Returns all scheduled job IDs for an account.
+
+The server's Flow listener (`server/src/lib/flowListener.ts`) polls for `DepositTriggered` events and enqueues a pending deposit. The frontend polls `/api/flow-deposit-pending/:userAddress`, signs the USDC transfer with the embedded Web3Auth wallet, and reports the Sepolia tx hash back to `/api/flow-deposit-complete`.
+
+---
+
+## HTTP API
+
+Base URL: `http://localhost:3001` (set `NEXT_PUBLIC_API_BASE_URL` in frontend env).
+
+### Health
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/` | Service name, link to Next.js app, lists main endpoints, `onchain` readiness, `depositQueueSource` |
+| `GET` | `/` | Service info, on-chain readiness, deposit queue source |
 | `GET` | `/health` | `{ ok, onchainReady, depositQueueSource }` |
 
-### Agent lifecycle
+### Agent Lifecycle
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/setup` | Body: `userAddress`, `goalAmountUSDC`, `frequency` (`daily` \| `weekly` \| `monthly`), `yieldEnabled`. First-time: IPFS + ERC-8004 register + `setAgentWallet` + `registerUserAgent`; optional Flow `scheduleFlowDeposit`. If user already has `agentId` in RAM: updates goal only. If already on-chain but not in RAM: hydrates from chain. **503** if first-time on-chain deps missing. |
-| `GET` | `/api/agent/:userAddress` | Returns stored agent (goal, `nextExecutionISO`, `flowSchedule`, `automationReceipts`, …). If not in memory, tries **on-chain `AgentRegistry.lookup`**. **404** if no agent. |
+| `POST` | `/api/setup` | Body: `userAddress, goalAmountUSDC, frequency, yieldEnabled`. First-time: IPFS + ERC-8004 + vault register + optional Flow schedule. Existing: update goal only. |
+| `GET` | `/api/agent/:userAddress` | Returns agent state (goal, frequency, next execution, receipts). Falls back to on-chain lookup. **404** if none. |
 
-### Automation receipts (in-memory)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/receipts/:agentId` | Returns `{ receipts }` from API RAM for that `agentId` (automation runs after deposits). |
-
-### Flow ↔ dashboard (pending USDC deposit)
-
-When Flow (or the time-based scheduler) decides a deposit should run, the server exposes a **pending queue**; the **dashboard** signs `USDC.transfer` / vault deposit with the user’s wallet, then notifies the API.
+### Receipts
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/flow-deposit-pending/:userAddress` | Returns `{ pending: null \| { id, amountUSDC, flowTimestamp, vaultAddress } }`. `vaultAddress` uses `VAULT_CONTRACT_ADDRESS` or default from `contracts.json`. |
-| `POST` | `/api/flow-deposit-complete` | Body: `id`, `userAddress`, `sepoliaTxHash`. Completes the head of the queue, triggers `notifyFlowDepositCompleted` (updates receipts, reschedules `nextExecutionISO`, optional Flow reschedule). |
+| `GET` | `/api/receipts/:agentId` | Returns array of automation execution receipts |
 
-### Demo endpoints
-
-Guarded by **`NAPFI_DEMO_ENDPOINTS`** (default on; set to `false` to disable).
+### Flow ↔ Dashboard Deposit Queue
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/demo/schedule-one-minute` | Body: `{ userAddress }`. Schedules next Flow run in **60s** and aligns `nextExecutionISO`. Requires Flow env; **503** if Flow not configured. |
-| `POST` | `/api/demo/execute-deposit` | Body: `{ userAddress }`. Runs **backend** `executeEncryptedDeposit` + reputation **without** Flow (for environments without Flow). Requires on-chain + IPFS env. |
+| `GET` | `/api/flow-deposit-pending/:userAddress` | Returns `{ pending: null \| { id, amountUSDC, flowTimestamp, vaultAddress } }` |
+| `POST` | `/api/flow-deposit-complete` | Body: `id, userAddress, sepoliaTxHash`. Completes deposit, updates receipts, reschedules. |
+
+### Demo Endpoints
+
+Enabled by default (`NAPFI_DEMO_ENDPOINTS=true`).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/demo/schedule-one-minute` | Body: `{ userAddress }`. Schedules next Flow deposit in 60 seconds. |
+| `POST` | `/api/demo/execute-deposit` | Body: `{ userAddress }`. Runs encrypted Sepolia deposit directly without Flow (for non-Flow demos). |
 
 ### Cron (optional)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/cron/enqueue-schedule-deposits` | Header: `Authorization: Bearer <NAPFI_CRON_SECRET>`. Runs the same enqueue pass as the schedule-time watcher. Only valid when **`NAPFI_DEPOSIT_QUEUE_SOURCE=time`**. |
-
-### Deposit queue source
-
-- **`time` (default):** when wall-clock passes `nextExecutionISO`, the server can enqueue a pending deposit (poll interval `NAPFI_SCHEDULE_TIME_POLL_MS`).
-- **`chain`:** enqueue only when Flow emits **DepositTriggered** (see logs in `server/src/lib/flowListener.ts`).
+| `POST` | `/api/cron/enqueue-schedule-deposits` | `Authorization: Bearer <NAPFI_CRON_SECRET>`. Manually triggers time-based deposit enqueue. Only valid when `NAPFI_DEPOSIT_QUEUE_SOURCE=time`. |
 
 ---
 
-## Backend execution path (Sepolia)
+## Frontend Pages
 
-`server/src/lib/sepoliaExecutor.ts` uses **@zama-fhe/relayer-sdk** to build real ciphertexts and calls the vault’s **`deposit`** as **`agentOperator`**. The vault address used is **`VAULT_CONTRACT_ADDRESS`** or `contracts.json` → `encryptedVault`. For production NapFi USDC + Uniswap UI, set **`VAULT_CONTRACT_ADDRESS`** to the deployed **`NapFiUniswapVault`** so executor and UI agree.
-
----
-
-## Environment variables
-
-See **`server/.env.example`** for:
-
-- Sepolia RPC, backend key, optional operator key  
-- IPFS (Lighthouse / Pinata)  
-- Optional **`VAULT_CONTRACT_ADDRESS`**  
-- Flow testnet (`FLOW_ACCESS_NODE`, `FLOW_ACCOUNT_ADDRESS`, `FLOW_PRIVATE_KEY`, `AGENT_SCHEDULER_ADDRESS`)  
-- Demo flags, deposit queue source, cron secret, **`AGENT_ID`**
-
-Frontend: **`NEXT_PUBLIC_API_BASE_URL`**, optional **`NEXT_PUBLIC_USDC_VAULT_ADDRESS`** for vault override.
+| Route | Description |
+|-------|-------------|
+| `/` | Landing page — hero, feature overview |
+| `/onboarding` | 3-step setup: USDC goal → frequency → yield toggle → agent creation |
+| `/dashboard` | Main app: wallet + vault balance, deposit/withdraw, countdown to next execution, Flow deposit signing |
+| `/receipts` | Automation history: date, amount, Sepolia tx hash (Etherscan links), total saved |
+| `/settings` | Update savings goal, frequency, yield toggle; vault address; logout |
 
 ---
 
-## Running locally
+## Running Locally
 
-1. **API:** `cd server && npm install && npm run dev` (port **3001** by default).  
-2. **Frontend:** `cd frontend && npm install && npm run dev` (typically **3000**).  
-3. Point **`NEXT_PUBLIC_API_BASE_URL=http://localhost:3001`** in `frontend/.env.local`.
+**1. Server**
+```bash
+cd server
+npm install
+cp .env.example .env   # fill in SEPOLIA_RPC_URL, BACKEND_PRIVATE_KEY, IPFS keys
+npm run dev            # port 3001
+```
+
+**2. Frontend**
+```bash
+cd frontend
+pnpm install
+# create frontend/.env.local with:
+# NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+pnpm dev               # port 3000
+```
+
+**3. Onchain (optional redeploy)**
+```bash
+cd onchain
+npm install
+npx hardhat compile
+npx hardhat run scripts/deploy.ts --network sepolia
+```
+
+---
+
+## Environment Variables
+
+### Server (`server/.env`)
+
+| Variable | Description |
+|----------|-------------|
+| `SEPOLIA_RPC_URL` | Ethereum Sepolia RPC (Alchemy / Infura) |
+| `BACKEND_PRIVATE_KEY` | Operator wallet private key for on-chain txs |
+| `LIGHTHOUSE_API_KEY` or `PINATA_JWT` | IPFS pinning |
+| `VAULT_CONTRACT_ADDRESS` | Override default vault (uses `contracts.json` if unset) |
+| `FLOW_ACCESS_NODE` | Flow testnet access node URL |
+| `FLOW_ACCOUNT_ADDRESS` | Flow account that deployed AgentScheduler |
+| `FLOW_PRIVATE_KEY` | Flow account private key |
+| `AGENT_SCHEDULER_ADDRESS` | `0xc4d59c93cd6c2c43` |
+| `NAPFI_DEPOSIT_QUEUE_SOURCE` | `flow` (event-driven) or `time` (interval-based) |
+| `NAPFI_DEMO_ENDPOINTS` | `true` / `false` (default: `true`) |
+| `NAPFI_CRON_SECRET` | Bearer token for cron endpoint |
+| `AGENT_ID` | ERC-8004 agent ID for reputation posting |
+| `CORS_ORIGIN` | Allowed frontend origin |
+
+### Frontend (`frontend/.env.local`)
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_API_BASE_URL` | Server URL, e.g. `http://localhost:3001` |
+| `NEXT_PUBLIC_USDC_VAULT_ADDRESS` | Override vault address (optional) |
 
 ---
 
 ## References
 
-- [EIP-8004 Agent Specification](https://eips.ethereum.org/EIPS/eip-8004)  
-- [Uniswap v3 deployments — Ethereum Sepolia](https://docs.uniswap.org/contracts/v3/reference/deployments/ethereum-deployments)  
-- [Zama fhEVM](https://docs.zama.ai/) — FHE contracts and relayer SDK  
+- [EIP-8004 — On-chain Agent Identity & Reputation](https://eips.ethereum.org/EIPS/eip-8004)
+- [Zama fhEVM Documentation](https://docs.zama.ai/)
+- [Uniswap v3 — Ethereum Sepolia Deployments](https://docs.uniswap.org/contracts/v3/reference/deployments/ethereum-deployments)
+- [Flow Transaction Scheduler](https://developers.flow.com/)
+- [Web3Auth Docs](https://web3auth.io/docs/)
 
 ---
 
-*This README reflects the repository layout and contracts as checked in. Always verify addresses on [Sepolia Etherscan](https://sepolia.etherscan.io/) before mainnet or production use.*
+*All contracts are deployed on testnets only. Verify addresses on [Sepolia Etherscan](https://sepolia.etherscan.io/) before any production use.*
