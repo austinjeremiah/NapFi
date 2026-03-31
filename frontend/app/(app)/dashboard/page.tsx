@@ -816,15 +816,20 @@ export default function DashboardPage() {
                     <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
                       Next deposit
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => void handleDemoOneMinute()}
-                      disabled={demoScheduleBusy || agentLoading}
-                      className="shrink-0 font-mono text-[9px] uppercase tracking-wider border border-border px-2 py-1 rounded hover:bg-muted/40 disabled:opacity-40 transition-colors"
-                      title="Schedules Flow in 60s, then Sepolia deposit. Non-production API enables demo by default."
-                    >
-                      {demoScheduleBusy ? "…" : "Demo 1m"}
-                    </button>
+                    <div className="flex shrink-0 flex-col items-end gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => void handleDemoOneMinute()}
+                        disabled={demoScheduleBusy || agentLoading}
+                        className="text-left font-mono border border-border px-2 py-1.5 rounded hover:bg-muted/40 disabled:opacity-40 transition-colors leading-tight"
+                        title="Schedules Flow in 60s, then Sepolia deposit. Non-production API enables demo by default."
+                      >
+                        {demoScheduleBusy ? "…" : "For 1m"}
+                      </button>
+                      <span className="font-mono text-[8px] text-muted-foreground normal-case max-w-[7rem] text-right">
+                        for demo purpose
+                      </span>
+                    </div>
                   </div>
                   <p className="font-mono text-[10px] text-muted-foreground">
                     {freqChallengeLabel(agent.frequency)} · next run
