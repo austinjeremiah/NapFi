@@ -75,10 +75,14 @@ const ERC20_ABI = [
 
 const VAULT_ABI = [
   "function depositUSDC(uint256 amount) external",
-  "function withdrawUSDC(uint256 amount) external",
+  "function withdrawUSDC(uint256 shares) external",
   "function getUsdcBalance(address user) external view returns (uint256)",
+  "function totalShares() external view returns (uint256)",
+  "function sharesOf(address user) external view returns (uint256)",
+  "function positionTokenId() external view returns (uint256)",
+  "function getPositionLiquidity() external view returns (uint128)",
   "event DepositUSDC(address indexed user, uint256 amount)",
-  "event WithdrawUSDC(address indexed user, uint256 amount)",
+  "event WithdrawUSDC(address indexed user, uint256 sharesBurned, uint256 usdcReturned)",
 ]
 
 function getSigner(web3authProvider: Eip1193Provider) {
@@ -123,7 +127,7 @@ export async function depositUsdcFromWallet(
     const have = formatUnits(walletBalance, USDC_DECIMALS)
     throw new Error(
       `Insufficient USDC. Wallet has ${have} USDC, need ${amountUsdc}. ` +
-        `Get Sepolia USDC from https://faucet.circle.com/`
+        `Get Circle Sepolia USDC from https://faucet.circle.com`
     )
   }
 
@@ -141,6 +145,72 @@ export async function depositUsdcFromWallet(
 
   console.log(`[Deposit] Confirmed: ${receipt.hash}`)
   return { txHash: receipt.hash as string }
+}
+
+// ── Uniswap v3 LP info ──────────────────────────────────────────────────
+
+const NPM_SEPOLIA = "0x1238536071E1c677A632429e3655c799b22cDA52"
+const WETH_SEPOLIA = "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14"
+const WETH_DECIMALS = 18
+
+const NPM_ABI = [
+  "function positions(uint256 tokenId) external view returns (uint96 nonce, address operator, address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128, uint128 tokensOwed0, uint128 tokensOwed1)",
+]
+
+export type VaultLPInfo = {
+  totalSharesUsdc: string
+  userSharesUsdc: string
+  userSharesBps: string
+  positionTokenId: string
+  liquidity: string
+  feesUsdc: string
+  feesWeth: string
+}
+
+export async function getVaultLPInfo(
+  userAddress: string
+): Promise<VaultLPInfo> {
+  const provider = sepoliaReadProvider()
+  const vault = getAddress(VAULT_ADDRESS)
+  const v = new Contract(vault, VAULT_ABI, provider)
+
+  const [totalShares, userShares, positionTokenId, liquidity] =
+    await Promise.all([
+      v.totalShares() as Promise<bigint>,
+      v.sharesOf(getAddress(userAddress)) as Promise<bigint>,
+      v.positionTokenId() as Promise<bigint>,
+      v.getPositionLiquidity() as Promise<bigint>,
+    ])
+
+  const userSharesBps =
+    totalShares > 0n ? (userShares * 10000n) / totalShares : 0n
+
+  // Read uncollected fees from Uniswap NonfungiblePositionManager
+  let feesUsdc = "0"
+  let feesWeth = "0"
+  if (positionTokenId > 0n) {
+    try {
+      const npm = new Contract(NPM_SEPOLIA, NPM_ABI, provider)
+      const pos = await npm.positions(positionTokenId)
+      // USDC (0x1c7D…) < WETH (0xfFf9…) → USDC is token0
+      const tokensOwed0: bigint = pos.tokensOwed0
+      const tokensOwed1: bigint = pos.tokensOwed1
+      feesUsdc = formatUnits(tokensOwed0, USDC_DECIMALS)
+      feesWeth = formatUnits(tokensOwed1, WETH_DECIMALS)
+    } catch {
+      // Position may not exist yet
+    }
+  }
+
+  return {
+    totalSharesUsdc: formatUnits(totalShares, USDC_DECIMALS),
+    userSharesUsdc: formatUnits(userShares, USDC_DECIMALS),
+    userSharesBps: (Number(userSharesBps) / 100).toFixed(2),
+    positionTokenId: positionTokenId.toString(),
+    liquidity: liquidity.toString(),
+    feesUsdc,
+    feesWeth,
+  }
 }
 
 export async function withdrawUsdcFromVault(

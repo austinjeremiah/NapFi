@@ -26,6 +26,8 @@ import {
   getVaultUsdcBalance,
   getWalletUsdcBalance,
   withdrawUsdcFromVault,
+  getVaultLPInfo,
+  type VaultLPInfo,
 } from "@/lib/contracts"
 
 
@@ -217,6 +219,28 @@ export default function DashboardPage() {
     refreshUsdcBalances()
   }, [refreshUsdcBalances])
 
+  // ── Uniswap v3 LP info ──
+  const [lpInfo, setLpInfo] = useState<VaultLPInfo | null>(null)
+  const [lpLoading, setLpLoading] = useState(false)
+
+  const refreshLpInfo = useCallback(() => {
+    if (!walletAddress) {
+      setLpInfo(null)
+      return
+    }
+    setLpLoading(true)
+    getVaultLPInfo(walletAddress)
+      .then(setLpInfo)
+      .catch(() => setLpInfo(null))
+      .finally(() => setLpLoading(false))
+  }, [walletAddress])
+
+  useEffect(() => {
+    refreshLpInfo()
+    const id = window.setInterval(refreshLpInfo, 15_000)
+    return () => window.clearInterval(id)
+  }, [refreshLpInfo])
+
   useEffect(() => {
     if (demoFallbackUntil == null || !walletAddress) return
     const ms = Math.max(0, demoFallbackUntil - Date.now())
@@ -227,6 +251,7 @@ export default function DashboardPage() {
         .then(() => {
           void refreshAgent()
           refreshUsdcBalances()
+          refreshLpInfo()
         })
         .catch((e) => {
           setDemoScheduleError(e instanceof Error ? e.message : String(e))
@@ -312,7 +337,8 @@ export default function DashboardPage() {
     setDemoSimulatedNote(null)
     void refreshAgent()
     refreshUsdcBalances()
-  }, [nowMs, demoOneMinuteUntil, refreshAgent, refreshUsdcBalances])
+    refreshLpInfo()
+  }, [nowMs, demoOneMinuteUntil, refreshAgent, refreshUsdcBalances, refreshLpInfo])
 
   const handleDemoOneMinute = async () => {
     if (!walletAddress) return
@@ -367,6 +393,7 @@ export default function DashboardPage() {
     try {
       await depositUsdcFromWallet(provider as never, n)
       refreshUsdcBalances()
+      refreshLpInfo()
       setDepositAmount(String(n))
     } catch (e) {
       setUsdcActionError(e instanceof Error ? e.message : "Deposit failed")
@@ -387,6 +414,7 @@ export default function DashboardPage() {
     try {
       await withdrawUsdcFromVault(provider as never, n)
       refreshUsdcBalances()
+      refreshLpInfo()
       setWithdrawAmount("")
     } catch (e) {
       setUsdcActionError(e instanceof Error ? e.message : "Withdraw failed")
@@ -430,13 +458,14 @@ export default function DashboardPage() {
       completedFlowIdsRef.current.add(pending.id)
       console.log(`[Flow Auto] Flow deposit complete id=${pending.id}`)
       refreshUsdcBalances()
+      refreshLpInfo()
       void refreshAgent()
     } catch (e) {
       console.error("[Flow Auto] Error:", e)
     } finally {
       flowDepositBusyRef.current = false
     }
-  }, [walletAddress, provider, refreshUsdcBalances, refreshAgent])
+  }, [walletAddress, provider, refreshUsdcBalances, refreshLpInfo, refreshAgent])
 
   useEffect(() => {
     if (!walletAddress || !provider) return
@@ -489,7 +518,7 @@ export default function DashboardPage() {
               Agent registry points to{" "}
               <span className="text-foreground">{shortAddr(agent?.vaultAddress ?? "")}</span>.
               USDC deposit/withdraw uses the NapFi vault{" "}
-              <span className="text-foreground">{shortAddr(VAULT_ADDRESS)}</span> (Circle test USDC + depositUSDC).
+              <span className="text-foreground">{shortAddr(VAULT_ADDRESS)}</span> (Uniswap v3 LP + Zama encrypted balances).
             </p>
           </div>
         )}
@@ -544,6 +573,97 @@ export default function DashboardPage() {
                   <span className="text-sm font-normal text-muted-foreground">USDC</span>
                 </p>
               </div>
+            </div>
+
+            {/* ── Uniswap v3 LP Yield ────────────────────────── */}
+            <div className="border-t border-border pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                  Uniswap v3 LP Yield (Sepolia)
+                </p>
+                <a
+                  href={`https://sepolia.etherscan.io/address/${VAULT_ADDRESS}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                >
+                  Vault <ExternalLink size={10} />
+                </a>
+              </div>
+
+              {lpLoading && !lpInfo ? (
+                <p className="font-mono text-xs text-muted-foreground">Loading LP data…</p>
+              ) : lpInfo ? (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
+                        Vault Total
+                      </p>
+                      <p className="font-mono text-lg font-bold text-foreground">
+                        {lpInfo.totalSharesUsdc}{" "}
+                        <span className="text-xs font-normal text-muted-foreground">USDC</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
+                        Your Shares
+                      </p>
+                      <p className="font-mono text-lg font-bold text-foreground">
+                        {lpInfo.userSharesUsdc}{" "}
+                        <span className="text-xs font-normal text-muted-foreground">USDC</span>
+                      </p>
+                      <p className="font-mono text-[9px] text-muted-foreground">
+                        {lpInfo.userSharesBps}% of vault
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
+                        LP Position
+                      </p>
+                      <p className="font-mono text-lg font-bold text-foreground">
+                        #{lpInfo.positionTokenId}
+                      </p>
+                      <p className="font-mono text-[9px] text-muted-foreground">
+                        USDC/WETH 0.3%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
+                        Liquidity
+                      </p>
+                      <p className="font-mono text-lg font-bold text-green-500">
+                        {lpInfo.liquidity !== "0" ? lpInfo.liquidity : "—"}
+                      </p>
+                      <p className="font-mono text-[9px] text-muted-foreground">
+                        Uniswap v3 pool
+                      </p>
+                    </div>
+                  </div>
+                  <div className="border-t border-border/50 pt-3 mt-1">
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-2">
+                      Uncollected Fees (real yield from swaps)
+                    </p>
+                    <div className="flex items-baseline gap-6">
+                      <p className="font-mono text-lg font-bold text-green-500">
+                        {lpInfo.feesUsdc}{" "}
+                        <span className="text-xs font-normal text-muted-foreground">USDC</span>
+                      </p>
+                      <p className="font-mono text-lg font-bold text-green-500">
+                        {lpInfo.feesWeth}{" "}
+                        <span className="text-xs font-normal text-muted-foreground">WETH</span>
+                      </p>
+                    </div>
+                    <p className="font-mono text-[9px] text-muted-foreground mt-1">
+                      Earned from 0.3% swap fees. Collected automatically on withdraw.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <p className="font-mono text-xs text-muted-foreground">
+                  Connect wallet to view LP yield data.
+                </p>
+              )}
             </div>
 
             {usdcActionError && (

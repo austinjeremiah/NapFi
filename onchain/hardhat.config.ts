@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import "@fhevm/hardhat-plugin";
 import "@nomicfoundation/hardhat-chai-matchers";
 import "@nomicfoundation/hardhat-ethers";
@@ -16,6 +19,31 @@ import "./tasks/FHECounter";
 
 const MNEMONIC: string = vars.get("MNEMONIC", "test test test test test test test test test test test junk");
 const INFURA_API_KEY: string = vars.get("INFURA_API_KEY", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
+
+/** If `DEPLOYER_PRIVATE_KEY` is set in `onchain/.env`, Sepolia deploys use that key (deployer = accounts[0]). */
+function sepoliaAccounts():
+  | string[]
+  | { mnemonic: string; path: string; count: number } {
+  const pk = process.env.DEPLOYER_PRIVATE_KEY?.trim();
+  if (pk) {
+    const normalized = pk.startsWith("0x") ? pk : `0x${pk}`;
+    if (!/^0x[0-9a-fA-F]{64}$/.test(normalized)) {
+      throw new Error(
+        "DEPLOYER_PRIVATE_KEY in .env must be 64 hex chars (optionally 0x-prefixed)."
+      );
+    }
+    return [normalized];
+  }
+  return {
+    mnemonic: MNEMONIC,
+    path: "m/44'/60'/0'/0/",
+    count: 10,
+  };
+}
+
+const SEPOLIA_RPC_URL =
+  process.env.SEPOLIA_RPC_URL?.trim() ||
+  `https://sepolia.infura.io/v3/${INFURA_API_KEY}`;
 
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
@@ -49,13 +77,9 @@ const config: HardhatUserConfig = {
       url: "http://localhost:8545",
     },
     sepolia: {
-      accounts: {
-        mnemonic: MNEMONIC,
-        path: "m/44'/60'/0'/0/",
-        count: 10,
-      },
+      accounts: sepoliaAccounts(),
       chainId: 11155111,
-      url: `https://sepolia.infura.io/v3/${INFURA_API_KEY}`,
+      url: SEPOLIA_RPC_URL,
     },
   },
   paths: {

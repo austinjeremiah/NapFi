@@ -27,6 +27,10 @@ export const AGENT_REGISTRY_ABI = [
   { inputs: [{ internalType: "address", name: "user", type: "address" }, { internalType: "uint256", name: "agentId", type: "uint256" }, { internalType: "address", name: "vault", type: "address" }], name: "registerUserAgent", outputs: [], stateMutability: "nonpayable", type: "function" },
 ] as const
 
+/** Circle test USDC on Sepolia — used by NapFiUniswapVault. */
 export const SEPOLIA_USDC = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
-export const VAULT_ADDRESS = "0x9045d16F64FA58EaEf8d1F62A16edA55121EBd1E"
+/** NapFiUniswapVault: USDC/WETH LP on Uniswap v3 with Zama fhEVM encrypted balances. */
+export const VAULT_ADDRESS =
+  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_USDC_VAULT_ADDRESS?.trim()) ||
+  "0x00708ec2B50d785d6717Ef8192bF89b62aB28348"
 export const USDC_DECIMALS = 6
