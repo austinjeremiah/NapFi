@@ -18,7 +18,7 @@
 
 #  Napfi - Trusted Savings App with ERC-8004
 
-NapFi is a **confidential DeFi savings agent** on **Ethereum Sepolia**. Users sign in with Google or email (no wallet or seed phrase required), set a savings goal, and an on-chain ERC-8004 agent automatically deposits USDC into a **Zama fhEVM** encrypted vault — with optional **Uniswap v3 liquidity provision**. Scheduling is handled via **Flow (Cadence) testnet** or a time-based server scheduler. Every automated execution posts a verifiable reputation receipt on-chain.
+NapFi is a **confidential DeFi savings agent** on **Ethereum Sepolia**. Users sign in with Google or email (no wallet or seed phrase required), set a savings goal, and an on-chain ERC-8004 agent automatically deposits USDC into a **Zama fhEVM** encrypted vault — with **Uniswap v3 liquidity provision**. Scheduling is handled via **Flow Actions(Cadence) testnet** or a time-based server scheduler. Every automated execution posts a verifiable reputation receipt on-chain.
 
 ---
 
